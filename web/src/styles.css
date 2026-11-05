@@ -165,6 +165,16 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
   background: rgba(17, 24, 39, 0.8); color: var(--white); font-size: 13px; font-weight: 700;
   padding: 8px 14px; border-radius: 999px; white-space: nowrap;
 }
+.cam__flash { position: absolute; inset: 0; background: var(--white); pointer-events: none; animation: cam-flash 260ms ease-out forwards; z-index: 3; }
+@keyframes cam-flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+.cam__pill--bump { animation: cam-bump 300ms ease-out; }
+@keyframes cam-bump { 0% { transform: scale(1); } 40% { transform: scale(1.18); background: var(--mint); } 100% { transform: scale(1); } }
+.cam__toast--saved { background: var(--mint); bottom: calc(var(--safe-bottom) + 240px); }
+.cam__shot--new { animation: cam-pop 320ms cubic-bezier(0.2, 0.8, 0.2, 1); outline: 2px solid var(--mint-mid); outline-offset: -2px; }
+@keyframes cam-pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+.cam__shutter:active { transform: scale(0.9); }
+.cam__shutter:active span { transform: scale(0.85); }
+.cam__shutter, .cam__shutter span { transition: transform 90ms ease-out; }
 .cam__shutter {
   width: 76px; height: 76px; border-radius: 38px; border: 5px solid var(--white); background: var(--mint);
   display: flex; align-items: center; justify-content: center; padding: 0;

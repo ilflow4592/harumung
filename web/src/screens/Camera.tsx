@@ -6,6 +6,7 @@ import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listSessionMedia, markSessionReviewing } from '../db/repo';
 import { capturePhoto, makeThumbnail, openCamera, startRecording, stopStream, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
 
 export function CameraScreen() {
@@ -19,6 +20,14 @@ export function CameraScreen() {
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [flash, setFlash] = useState(0); // 바뀔 때마다 흰 플래시 1회
+  const [saved, setSaved] = useState<string | null>(null); // "저장됨" 토스트
+  const savedTimer = useRef<number | undefined>(undefined);
+  const showSaved = useCallback((text: string) => {
+    setSaved(text);
+    window.clearTimeout(savedTimer.current);
+    savedTimer.current = window.setTimeout(() => setSaved(null), 1200);
+  }, []);
 
   const { sessionId, mode, selectedDogIds, shotCount, setSession, setMode, selectDog, toggleMultiDog, bumpShotCount } = useCaptureStore();
   const { data: dogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
@@ -77,16 +86,20 @@ export function CameraScreen() {
   const takePhoto = useCallback(async () => {
     if (!sessionId || busy || !videoRef.current) return;
     setBusy(true);
+    // 셔터 효과는 저장 전에 즉시. 사용자가 "찍혔다"를 바로 느끼게 한다.
+    setFlash((n) => n + 1);
+    shutterFeedback();
     try {
       const blob = await capturePhoto(videoRef.current);
       const thumbBlob = await makeThumbnail(blob);
       await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob, thumbBlob, mimeType: 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
       bumpShotCount();
       refreshStrip();
+      showSaved(`${nameLabel} · ${stripMedia.length + 1}장째 저장됨`);
     } finally {
       setBusy(false);
     }
-  }, [sessionId, busy, selectedDogIds, bumpShotCount, refreshStrip]);
+  }, [sessionId, busy, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length]);
 
   const toggleRecording = useCallback(async () => {
     if (!sessionId || !streamRef.current) return;
@@ -102,10 +115,11 @@ export function CameraScreen() {
         await insertCapturedMedia({ sessionId, kind: 'VIDEO', blob, thumbBlob, mimeType, durationMs, dogIds: dogIdsAtStart });
         bumpShotCount();
         refreshStrip();
+        showSaved(`영상 ${Math.round(durationMs / 1000)}초 저장됨`);
       })
       .catch((e) => setError(String(e)))
       .finally(() => { setRecording(false); setBusy(false); recRef.current = null; });
-  }, [recording, sessionId, selectedDogIds, bumpShotCount, refreshStrip]);
+  }, [recording, sessionId, selectedDogIds, bumpShotCount, refreshStrip, showSaved]);
 
   /** 앨범에서 가져온 사진·영상을 현재 지정 강아지로 세션에 넣는다. 여러 장 가능. */
   const importFromAlbum = useCallback(
@@ -129,13 +143,14 @@ export function CameraScreen() {
           bumpShotCount();
         }
         refreshStrip();
+        showSaved(`${files.length}개 가져옴`);
       } finally {
         setImporting(null);
         setBusy(false);
         if (albumInput.current) albumInput.current.value = '';
       }
     },
-    [sessionId, selectedDogIds, bumpShotCount, refreshStrip],
+    [sessionId, selectedDogIds, bumpShotCount, refreshStrip, showSaved],
   );
 
   const close = useCallback(async () => {
@@ -151,12 +166,13 @@ export function CameraScreen() {
   return (
     <div className="cam">
       <video ref={videoRef} className="preview" playsInline muted autoPlay />
+      {flash > 0 ? <div key={flash} className="cam__flash" /> : null}
       {error ? <div className="cam__center">{error}</div> : null}
       {!ready && !error ? <div className="cam__center">카메라 여는 중…</div> : null}
 
       <div className="cam__top">
         <button type="button" className="cam__round" aria-label="촬영 마치고 검수" onClick={close}>✕</button>
-        <div className="cam__pill">오늘 {shotCount}장</div>
+        <div key={shotCount} className={`cam__pill ${shotCount > 0 ? 'cam__pill--bump' : ''}`}>오늘 {shotCount}장</div>
         <button type="button" className="cam__round" disabled={recording} onClick={() => setMode(mode === 'photo' ? 'video' : 'photo')}>
           {mode === 'photo' ? '영상' : '사진'}
         </button>
@@ -226,6 +242,7 @@ export function CameraScreen() {
         </div>
       </div>
       {importing ? <div className="cam__toast">{importing}</div> : null}
+      {!importing && saved ? <div className="cam__toast cam__toast--saved">✓ {saved}</div> : null}
     </div>
   );
 }
@@ -244,16 +261,16 @@ function ShotStrip({ items, label }: { items: MediaItem[]; label: string }) {
         {items.length === 0 ? <span style={{ color: '#D1D5DB' }}>아직 찍은 사진이 없어요</span> : null}
       </div>
       <div ref={ref} className="cam__shots-row">
-        {items.map((m, i) => <ShotThumb key={m.id} m={m} index={i + 1} />)}
+        {items.map((m, i) => <ShotThumb key={m.id} m={m} index={i + 1} latest={i === items.length - 1} />)}
       </div>
     </div>
   );
 }
 
-function ShotThumb({ m, index }: { m: MediaItem; index: number }) {
+function ShotThumb({ m, index, latest }: { m: MediaItem; index: number; latest: boolean }) {
   const url = useObjectUrl(m.thumbBlob ?? m.blob);
   return (
-    <div className="cam__shot">
+    <div className={`cam__shot ${latest ? 'cam__shot--new' : ''}`}>
       {url ? <img src={url} alt="" /> : null}
       <span className="cam__shot-no">{index}</span>
       {m.kind === 'VIDEO' ? <span className="cell__dur">{Math.round((m.durationMs ?? 0) / 1000)}초</span> : null}
