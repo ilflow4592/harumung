@@ -5,6 +5,15 @@ import { compressVideo } from './videoCompress';
 const photoCache = new Map<string, Blob>();
 const videoCache = new Map<string, Blob>();
 
+// 완성된 File 묶음 캐시. 카드가 다시 그려져도(보낸 아이 보기, 목록 이동) 준비 과정을 반복하지 않는다.
+const fileCache = new Map<string, File[]>();
+export function prepareKey(items: MediaItem[], dogName: string, date: string, compressPhoto: boolean, compressVideoFlag: boolean): string {
+  return [dogName, date, compressPhoto ? 'p1' : 'p0', compressVideoFlag ? 'v1' : 'v0', ...items.map((m) => m.id)].join('|');
+}
+export function getPreparedFiles(key: string): File[] | undefined {
+  return fileCache.get(key);
+}
+
 // 영상 변환은 재생 시간만큼 걸리고 무거우므로 한 번에 하나만 돌린다.
 let videoQueue: Promise<unknown> = Promise.resolve();
 function enqueueVideo<T>(fn: () => Promise<T>): Promise<T> {
@@ -55,6 +64,9 @@ export async function toShareFiles(
   compressVideoFlag: boolean,
   onProgress?: (p: PrepareProgress) => void,
 ): Promise<File[]> {
+  const key = prepareKey(items, dogName, date, compressPhoto, compressVideoFlag);
+  const hit = fileCache.get(key);
+  if (hit) return hit;
   const files: File[] = [];
   let i = 0;
   for (const m of items) {
@@ -89,6 +101,7 @@ export async function toShareFiles(
     files.push(new File([blob], `${dogName}_${date}_${String(i).padStart(2, '0')}.${ext}`, { type }));
     onProgress?.({ done: i, total: items.length, stage: m.kind === 'VIDEO' ? 'video' : 'photo' });
   }
+  fileCache.set(key, files);
   return files;
 }
 

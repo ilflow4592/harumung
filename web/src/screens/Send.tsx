@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
 import { listActiveDogs, listContacts, listDogKeptOn, listReviewedDogIds, listSentDogIds, localDate, markSent } from '../db/repo';
-import { canShareFiles, downloadFiles, formatBytes, shareFiles, splitBatches, toShareFiles, type PrepareProgress } from '../lib/share';
+import { canShareFiles, downloadFiles, formatBytes, getPreparedFiles, prepareKey, shareFiles, splitBatches, toShareFiles, type PrepareProgress } from '../lib/share';
 import { unlockAudio } from '../lib/videoCompress';
 
 const PHOTO_KEY = 'harumung.send.compressPhoto';
@@ -90,7 +90,9 @@ function SendRow({ dog, date, sent, compressPhoto, compressVideo }: { dog: Dog; 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [doneBatches, setDoneBatches] = useState<Set<number>>(new Set());
-  const [files, setFiles] = useState<File[]>([]);
+  // 이미 준비된 묶음이 있으면 로딩 없이 바로 쓴다.
+  const key = prepareKey(items, dog.name, date, compressPhoto, compressVideo);
+  const [files, setFiles] = useState<File[]>(() => getPreparedFiles(key) ?? []);
   const [progress, setProgress] = useState<PrepareProgress | null>(null);
 
   const photos = useMemo(() => items.filter((m) => m.kind === 'PHOTO'), [items]);
@@ -100,12 +102,14 @@ function SendRow({ dog, date, sent, compressPhoto, compressVideo }: { dog: Dog; 
   useEffect(() => {
     let cancelled = false;
     if (items.length === 0) { setFiles([]); setProgress(null); return; }
+    const hit = getPreparedFiles(key);
+    if (hit) { setFiles(hit); setProgress(null); return; }
     setFiles([]);
     setProgress({ done: 0, total: items.length, stage: 'photo' });
     toShareFiles(items, dog.name, date, compressPhoto, compressVideo, (p) => { if (!cancelled) setProgress(p); })
       .then((f) => { if (!cancelled) { setFiles(f); setProgress(null); } });
     return () => { cancelled = true; };
-  }, [items, dog.name, date, compressPhoto, compressVideo]);
+  }, [items, dog.name, date, compressPhoto, compressVideo, key]);
 
   const batches = useMemo(() => splitBatches(files), [files]);
   const bytes = files.reduce((n, f) => n + f.size, 0);
