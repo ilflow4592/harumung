@@ -11,6 +11,8 @@ type CaptureState = {
   setSession: (id: string) => void;
   setMode: (mode: CaptureMode) => void;
   selectDog: (dogId: string) => void;
+  /** 토글 없이 지정 목록을 그대로 덮어쓴다 (강아지 메뉴에서 촬영 시작할 때). */
+  setSelected: (dogIds: string[]) => void;
   toggleMultiDog: (dogId: string) => void;
   bumpShotCount: () => void;
   reset: () => void;
@@ -28,6 +30,7 @@ export const useCaptureStore = create<CaptureState>((set) => ({
     set((s) => ({
       selectedDogIds: s.selectedDogIds.length === 1 && s.selectedDogIds[0] === dogId ? [] : [dogId],
     })),
+  setSelected: (dogIds) => set({ selectedDogIds: dogIds }),
   // 길게 누르기: 다중 선택 토글
   toggleMultiDog: (dogId) =>
     set((s) => ({

@@ -36,6 +36,8 @@ export default defineConfig({
   ],
   server: {
     host: true,
+    // 터널(cloudflared 등)로 접속할 때 호스트 검사에 막히지 않게 한다. 개발 전용.
+    allowedHosts: true,
     proxy: {
       '/v1': 'http://localhost:8080',
       '/a': 'http://localhost:8080',
