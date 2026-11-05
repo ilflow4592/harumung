@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate, markSessionReviewing } from '../db/repo';
-import { cameraErrorMessage, capturePhotoBest, hasImageCapture, makeThumbnail, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { MAX_VIDEO_MS, cameraErrorMessage, capturePhotoBest, hasImageCapture, makeThumbnail, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
 
@@ -30,6 +30,7 @@ export function CameraScreen() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [recMs, setRecMs] = useState(0); // 녹화 경과 시간
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState(0); // 바뀔 때마다 흰 플래시 1회
   const [saved, setSaved] = useState<string | null>(null); // "저장됨" 토스트
@@ -177,6 +178,10 @@ export function CameraScreen() {
     }
     recRef.current = handle;
     setRecording(true);
+    setRecMs(0);
+    const startedAt = Date.now();
+    const tick = window.setInterval(() => setRecMs(Date.now() - startedAt), 200);
+    shutterFeedback();
     handle.done
       .then(async ({ blob, mimeType, durationMs }) => {
         setBusy(true);
@@ -187,7 +192,7 @@ export function CameraScreen() {
         showSaved(`영상 ${Math.round(durationMs / 1000)}초 저장됨`);
       })
       .catch((e) => setError(String(e)))
-      .finally(() => { setRecording(false); setBusy(false); recRef.current = null; });
+      .finally(() => { window.clearInterval(tick); setRecording(false); setRecMs(0); setBusy(false); recRef.current = null; });
   }, [recording, sessionId, selectedDogIds, bumpShotCount, refreshStrip, showSaved]);
 
   /** 앨범에서 가져온 사진·영상을 현재 지정 강아지로 세션에 넣는다. 여러 장 가능. */
@@ -252,6 +257,15 @@ export function CameraScreen() {
           <button type="button" role="tab" aria-selected={mode === 'video'} className={mode === 'video' ? 'on' : ''} disabled={recording} onClick={() => setMode('video')}>영상</button>
         </div>
       </div>
+
+      {recording ? (
+        <div className="cam__rec" role="status">
+          <span className="cam__rec-dot" />
+          <span className="cam__rec-time">{fmtRec(recMs)}</span>
+          <span className="cam__rec-max">/ {MAX_VIDEO_MS / 1000}초</span>
+          <span className="cam__rec-bar"><span style={{ width: `${Math.min(100, (recMs / MAX_VIDEO_MS) * 100)}%` }} /></span>
+        </div>
+      ) : null}
 
       <div className="cam__name">
         {selectedDogs.length === 0 ? (
@@ -318,6 +332,7 @@ export function CameraScreen() {
             type="button"
             className={`cam__shutter ${recording ? 'cam__shutter--rec' : ''}`}
             aria-label={mode === 'photo' ? '촬영' : recording ? '녹화 종료' : '녹화 시작'}
+            title={mode === 'video' ? (recording ? '누르면 녹화 종료' : '누르면 녹화 시작') : undefined}
             disabled={busy || !ready}
             onClick={mode === 'photo' ? takePhoto : toggleRecording}
           >
@@ -355,6 +370,11 @@ export function CameraScreen() {
       {mode === 'video' && noMic && !saved && !importing ? <div className="cam__toast">마이크 권한이 없어 무음으로 녹화돼요</div> : null}
     </div>
   );
+}
+
+function fmtRec(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
 /** 선택된 강아지의 이번 세션 사진 줄. 촬영 순서대로, 새 사진이 오른쪽 끝에 붙고 자동으로 끝까지 스크롤. */
