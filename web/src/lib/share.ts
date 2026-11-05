@@ -1,4 +1,17 @@
 import type { MediaItem } from '../db/db';
+import { compressVideo } from './videoCompress';
+
+// 보내기용 변환 결과 캐시. 같은 세션에서 토글을 껐다 켜도 다시 변환하지 않는다.
+const photoCache = new Map<string, Blob>();
+const videoCache = new Map<string, Blob>();
+
+// 영상 변환은 재생 시간만큼 걸리고 무거우므로 한 번에 하나만 돌린다.
+let videoQueue: Promise<unknown> = Promise.resolve();
+function enqueueVideo<T>(fn: () => Promise<T>): Promise<T> {
+  const run = videoQueue.then(fn, fn);
+  videoQueue = run.catch(() => undefined);
+  return run;
+}
 
 /**
  * 공유 시트로 파일 보내기 (Web Share API Level 2).
@@ -28,13 +41,19 @@ export async function compressImage(blob: Blob, maxSide = 2048, quality = 0.82):
   return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), 'image/jpeg', quality));
 }
 
-/** 미디어를 File 객체로. 파일명은 강아지_날짜_순번. compress면 사진을 축소한다. */
+export type PrepareProgress = { done: number; total: number; stage: 'photo' | 'video'; ratio?: number };
+
+/**
+ * 미디어를 File 객체로. 파일명은 강아지_날짜_순번.
+ * compressPhoto면 사진 축소, compressVideoFlag면 영상 720p 재인코딩(느림, 순차).
+ */
 export async function toShareFiles(
   items: MediaItem[],
   dogName: string,
   date: string,
-  compress: boolean,
-  onProgress?: (done: number, total: number) => void,
+  compressPhoto: boolean,
+  compressVideoFlag: boolean,
+  onProgress?: (p: PrepareProgress) => void,
 ): Promise<File[]> {
   const files: File[] = [];
   let i = 0;
@@ -43,12 +62,32 @@ export async function toShareFiles(
     if (!m.blob) continue;
     let blob = m.blob;
     let type = (m.mimeType || m.blob.type || (m.kind === 'VIDEO' ? 'video/mp4' : 'image/jpeg')).split(';')[0];
-    if (compress && m.kind === 'PHOTO') {
-      try { blob = await compressImage(m.blob); type = 'image/jpeg'; } catch { /* 실패하면 원본 */ }
+    if (m.kind === 'PHOTO' && compressPhoto) {
+      onProgress?.({ done: i - 1, total: items.length, stage: 'photo' });
+      const cached = photoCache.get(m.id);
+      if (cached) blob = cached;
+      else {
+        try { blob = await compressImage(m.blob); photoCache.set(m.id, blob); } catch { /* 실패하면 원본 */ }
+      }
+      type = 'image/jpeg';
+    } else if (m.kind === 'VIDEO' && compressVideoFlag) {
+      const cached = videoCache.get(m.id);
+      if (cached) blob = cached;
+      else {
+        const original = m.blob;
+        try {
+          const r = await enqueueVideo(() =>
+            compressVideo(original, { onProgress: (ratio) => onProgress?.({ done: i - 1, total: items.length, stage: 'video', ratio }) }),
+          );
+          if (r.blob.size > 0 && r.blob.size < original.size) { blob = r.blob; videoCache.set(m.id, blob); }
+          else videoCache.set(m.id, original); // 더 커지면 원본 유지
+        } catch { /* 변환 실패면 원본 */ }
+      }
+      type = blob.type.split(';')[0] || type;
     }
     const ext = EXT[type] ?? (m.kind === 'VIDEO' ? 'mp4' : 'jpg');
     files.push(new File([blob], `${dogName}_${date}_${String(i).padStart(2, '0')}.${ext}`, { type }));
-    onProgress?.(i, items.length);
+    onProgress?.({ done: i, total: items.length, stage: m.kind === 'VIDEO' ? 'video' : 'photo' });
   }
   return files;
 }

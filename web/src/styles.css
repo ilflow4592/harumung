@@ -260,6 +260,22 @@ a.stat { color: inherit; }
 .cam__toast--saved { background: var(--mint); bottom: calc(var(--safe-bottom) + 240px); }
 .cam__center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
 
+/* 보내기 상단 옵션 */
+.send-opts {
+  position: sticky; top: 56px; z-index: 4; display: flex; gap: 8px; padding: 10px 20px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.opt {
+  flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-control);
+  border: 1.5px solid var(--line); background: var(--white); text-align: left;
+}
+.opt--on { border-color: var(--mint); background: var(--mint-light); }
+.opt b { display: block; font-size: 13px; }
+.opt small { display: block; font-size: 11px; color: var(--text-2); }
+.thumbrow { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.thumbrow::-webkit-scrollbar { display: none; }
+.thumbrow__cell { width: 56px; height: 56px; aspect-ratio: auto; flex: 0 0 auto; }
+
 /* 세그먼트(밝은 배경용)·배정 스트립 */
 .seg { display: flex; height: 36px; padding: 3px; border-radius: 18px; background: var(--gray); gap: 2px; }
 .seg button { border: 0; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 700; padding: 0 12px; border-radius: 15px; display: inline-flex; align-items: center; gap: 4px; }
