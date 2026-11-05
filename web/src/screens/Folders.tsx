@@ -64,10 +64,13 @@ export function FoldersScreen() {
           <Chip label={hasAttendance ? '수정' : '체크하기'} tone="mint" />
         </Link>
         {unassigned > 0 && !query ? (
-          <div className="card" style={{ borderColor: 'var(--pink-mid)', borderWidth: 1.5 }}>
-            <div className="title">미지정 사진 {unassigned}장</div>
-            <div className="sub">폴더 검수에서 강아지를 정해 주세요</div>
-          </div>
+          <Link to="/folders/unassigned" className="card card--row" style={{ borderColor: 'var(--pink-mid)', borderWidth: 1.5, color: 'inherit' }}>
+            <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span className="title">미지정 사진 {unassigned}장</span>
+              <span className="sub">강아지를 정하거나 지워 주세요</span>
+            </span>
+            <Chip label="배정하기" tone="pink" />
+          </Link>
         ) : null}
         {perDog.length === 0 ? (
           <div className="card">

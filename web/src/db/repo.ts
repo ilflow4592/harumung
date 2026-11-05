@@ -166,6 +166,39 @@ export async function listTodayFolders(dateIso: string): Promise<FolderSummary> 
   return { perDog, unassigned };
 }
 
+/** 미지정 폴더: 강아지 없이 저장된 사진 전부 (최근 순). */
+export async function listUnassignedKept(): Promise<MediaItem[]> {
+  const rows = await db.media.where('reviewStatus').equals('kept').toArray();
+  return rows.filter((m) => m.dogIds.length === 0).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
+}
+
+/** 폴더 검수: 선택 사진들에 강아지를 붙인다 (이미 있으면 그대로). */
+export async function addDogToMedia(ids: string[], dogId: string): Promise<void> {
+  await db.transaction('rw', db.media, async () => {
+    for (const id of ids) {
+      const m = await db.media.get(id);
+      if (m && !m.dogIds.includes(dogId)) await db.media.update(id, { dogIds: [...m.dogIds, dogId] });
+    }
+  });
+}
+
+/** 폴더 검수: 선택 사진들에서 강아지를 뗀다. 아무도 안 남으면 미지정이 된다. */
+export async function removeDogFromMedia(ids: string[], dogId: string): Promise<void> {
+  await db.transaction('rw', db.media, async () => {
+    for (const id of ids) {
+      const m = await db.media.get(id);
+      if (m) await db.media.update(id, { dogIds: m.dogIds.filter((d) => d !== dogId), aCutDogIds: m.aCutDogIds.filter((d) => d !== dogId) });
+    }
+  });
+}
+
+/** 저장된 사진 삭제. 원본·썸네일 Blob을 비운다. */
+export async function deleteMedia(ids: string[]): Promise<void> {
+  await db.transaction('rw', db.media, async () => {
+    for (const id of ids) await db.media.update(id, { reviewStatus: 'deleted', blob: null, thumbBlob: null });
+  });
+}
+
 export async function listDogKept(dogId: string): Promise<MediaItem[]> {
   const rows = await db.media.where('dogIds').equals(dogId).toArray();
   return rows.filter((m) => m.reviewStatus === 'kept').sort((a, b) => a.takenAt.localeCompare(b.takenAt));
