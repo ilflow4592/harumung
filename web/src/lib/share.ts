@@ -1,4 +1,5 @@
 import type { MediaItem } from '../db/db';
+import { saveCompressedVideo } from '../db/repo';
 import { compressVideo } from './videoCompress';
 
 // 보내기용 변환 결과 캐시. 같은 세션에서 토글을 껐다 켜도 다시 변환하지 않는다.
@@ -7,6 +8,8 @@ const videoCache = new Map<string, Blob>();
 
 // 완성된 File 묶음 캐시. 카드가 다시 그려져도(보낸 아이 보기, 목록 이동) 준비 과정을 반복하지 않는다.
 const fileCache = new Map<string, File[]>();
+const fileInflight = new Map<string, Promise<File[]>>();
+const videoInflight = new Map<string, Promise<Blob>>();
 export function prepareKey(items: MediaItem[], dogName: string, date: string, compressPhoto: boolean, compressVideoFlag: boolean): string {
   return [dogName, date, compressPhoto ? 'p1' : 'p0', compressVideoFlag ? 'v1' : 'v0', ...items.map((m) => m.id)].join('|');
 }
@@ -67,6 +70,26 @@ export async function toShareFiles(
   const key = prepareKey(items, dogName, date, compressPhoto, compressVideoFlag);
   const hit = fileCache.get(key);
   if (hit) return hit;
+  // 같은 묶음을 동시에 두 번 준비하지 않는다 (카드가 다시 그려져도 진행 중인 작업에 합류).
+  const running = fileInflight.get(key);
+  if (running) {
+    return running;
+  }
+  const work = prepareFiles(items, dogName, date, compressPhoto, compressVideoFlag, onProgress)
+    .then((files) => { fileCache.set(key, files); return files; })
+    .finally(() => fileInflight.delete(key));
+  fileInflight.set(key, work);
+  return work;
+}
+
+async function prepareFiles(
+  items: MediaItem[],
+  dogName: string,
+  date: string,
+  compressPhoto: boolean,
+  compressVideoFlag: boolean,
+  onProgress?: (p: PrepareProgress) => void,
+): Promise<File[]> {
   const files: File[] = [];
   let i = 0;
   for (const m of items) {
@@ -83,17 +106,31 @@ export async function toShareFiles(
       }
       type = 'image/jpeg';
     } else if (m.kind === 'VIDEO' && compressVideoFlag) {
-      const cached = videoCache.get(m.id);
-      if (cached) blob = cached;
-      else {
+      // 우선순위: 메모리 캐시 → DB에 저장된 변환본 → 진행 중인 변환에 합류 → 새 변환
+      const cached = videoCache.get(m.id) ?? m.compressedBlob ?? null;
+      if (cached) {
+        blob = cached;
+        videoCache.set(m.id, cached);
+      } else {
         const original = m.blob;
-        try {
-          const r = await enqueueVideo(() =>
-            compressVideo(original, { onProgress: (ratio) => onProgress?.({ done: i - 1, total: items.length, stage: 'video', ratio }) }),
-          );
-          if (r.blob.size > 0 && r.blob.size < original.size) { blob = r.blob; videoCache.set(m.id, blob); }
-          else videoCache.set(m.id, original); // 더 커지면 원본 유지
-        } catch { /* 변환 실패면 원본 */ }
+        const idx = i;
+        let job = videoInflight.get(m.id);
+        if (!job) {
+          job = enqueueVideo(() =>
+            compressVideo(original, { onProgress: (ratio) => onProgress?.({ done: idx - 1, total: items.length, stage: 'video', ratio }) }),
+          )
+            .then(async (r) => {
+              const out = r.blob.size > 0 && r.blob.size < original.size ? r.blob : original; // 더 커지면 원본 유지
+              videoCache.set(m.id, out);
+              try { await saveCompressedVideo(m.id, out); } catch { /* 저장 실패해도 메모리 캐시로 동작 */ }
+              return out;
+            })
+            .finally(() => videoInflight.delete(m.id));
+          videoInflight.set(m.id, job);
+        } else {
+          onProgress?.({ done: idx - 1, total: items.length, stage: 'video', ratio: 0 });
+        }
+        try { blob = await job; } catch { /* 변환 실패면 원본 */ }
       }
       type = blob.type.split(';')[0] || type;
     }
@@ -101,7 +138,6 @@ export async function toShareFiles(
     files.push(new File([blob], `${dogName}_${date}_${String(i).padStart(2, '0')}.${ext}`, { type }));
     onProgress?.({ done: i, total: items.length, stage: m.kind === 'VIDEO' ? 'video' : 'photo' });
   }
-  fileCache.set(key, files);
   return files;
 }
 

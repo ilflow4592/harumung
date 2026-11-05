@@ -113,6 +113,10 @@ export async function listDogKeptOn(dogId: string, date: string): Promise<MediaI
   return all.filter((m) => localDate(new Date(m.takenAt)) === date);
 }
 
+export async function saveCompressedVideo(id: string, blob: Blob): Promise<void> {
+  await db.media.update(id, { compressedBlob: blob });
+}
+
 // ---------- 세션 ----------
 
 export async function getOrCreateOpenSession(): Promise<string> {

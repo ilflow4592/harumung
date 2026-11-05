@@ -64,6 +64,8 @@ export interface MediaItem {
   /** 촬영 원본. 서버 confirm 뒤 null로 비운다. */
   blob: Blob | null;
   thumbBlob: Blob | null;
+  /** 보내기용 720p 변환본. 한 번 변환하면 여기 저장해 다시 변환하지 않는다. */
+  compressedBlob?: Blob | null;
   mimeType: string;
   durationMs: number | null;
   sizeBytes: number | null;
