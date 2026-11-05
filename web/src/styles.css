@@ -141,105 +141,116 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
 .sexbox--FEMALE.checked { background: var(--pink-light); border-color: var(--pink); color: var(--pink); }
 
 /* 카메라 */
-.cam { position: fixed; inset: 0; background: var(--text); display: flex; flex-direction: column; color: var(--white); }
+.cam { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; color: var(--white); }
 .cam video.preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cam__top {
   position: relative; display: flex; align-items: center; justify-content: space-between;
-  padding: calc(var(--safe-top) + 8px) 12px 0;
+  padding: calc(var(--safe-top) + 10px) 14px 24px;
+  background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
 }
 .cam__round {
-  width: 44px; height: 44px; border-radius: 22px; border: 0; background: var(--overlay); color: var(--white);
-  font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 20px; border: 0; background: rgba(0, 0, 0, 0.35); color: var(--white);
+  font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);
 }
-.cam__seg { display: flex; height: 36px; padding: 3px; border-radius: 18px; background: var(--overlay); gap: 2px; }
-.cam__seg button { border: 0; background: transparent; color: rgba(255, 255, 255, 0.75); font-size: 13px; font-weight: 700; padding: 0 12px; border-radius: 15px; }
+.cam__hq { font-size: 11px; letter-spacing: 0.5px; }
+.cam__hq--on { background: var(--mint); }
+.cam__seg { display: flex; height: 36px; padding: 3px; border-radius: 18px; background: rgba(0, 0, 0, 0.35); gap: 2px; backdrop-filter: blur(8px); }
+.cam__seg button { border: 0; background: transparent; color: rgba(255, 255, 255, 0.75); font-size: 13px; font-weight: 700; padding: 0 14px; border-radius: 15px; }
 .cam__seg button.on { background: var(--white); color: var(--text); }
 .cam__seg button:disabled { opacity: 0.5; }
-.cam__hq { font-size: 12px; letter-spacing: 0.5px; }
-.cam__hq--on { background: var(--mint); }
-.cam__pill { height: 36px; padding: 0 14px; border-radius: 18px; background: var(--overlay); font-size: 13px; display: flex; align-items: center; }
+.cam__pill--bump { animation: cam-bump 300ms ease-out; }
+@keyframes cam-bump { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+/* 가운데 한 줄: 누구를 찍는지 */
+.cam__who {
+  position: relative; align-self: center; display: flex; align-items: center; gap: 8px;
+  height: 40px; padding: 0 8px 0 16px; border-radius: 20px; background: rgba(255, 255, 255, 0.94); color: var(--text);
+  font-size: 17px; max-width: calc(100% - 40px);
+}
+.cam__who b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cam__who-count { font-size: 12px; font-weight: 700; color: var(--mint); background: var(--mint-light); padding: 2px 8px; border-radius: 999px; }
+.cam__who-x { width: 28px; height: 28px; border-radius: 14px; border: 0; background: var(--gray); color: var(--text-2); font-size: 12px; font-weight: 700; }
+.cam__who--none { background: rgba(0, 0, 0, 0.35); color: rgba(255, 255, 255, 0.85); font-size: 13px; font-weight: 500; padding: 0 14px; backdrop-filter: blur(8px); }
 .cam__rec {
-  position: relative; align-self: center; margin-top: 12px; display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px; border-radius: 999px; background: rgba(17, 24, 39, 0.75); color: var(--white); font-weight: 700;
+  position: relative; align-self: center; display: flex; align-items: center; gap: 8px; height: 40px;
+  padding: 0 14px; border-radius: 20px; background: rgba(0, 0, 0, 0.6); color: var(--white); font-weight: 700; backdrop-filter: blur(8px);
 }
 .cam__rec-dot { width: 10px; height: 10px; border-radius: 5px; background: #ef4444; animation: rec-blink 1s steps(2, start) infinite; }
 @keyframes rec-blink { to { visibility: hidden; } }
 .cam__rec-time { font-variant-numeric: tabular-nums; font-size: 18px; }
 .cam__rec-max { font-size: 12px; color: #d1d5db; font-weight: 500; }
-.cam__rec-bar { width: 72px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); overflow: hidden; }
+.cam__rec-bar { width: 64px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); overflow: hidden; }
 .cam__rec-bar span { display: block; height: 100%; background: var(--pink-mid); transition: width 200ms linear; }
-.cam__shutter--rec { animation: rec-pulse 1.2s ease-in-out infinite; }
-@keyframes rec-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(194, 37, 109, 0.6); } 50% { box-shadow: 0 0 0 12px rgba(194, 37, 109, 0); } }
-.cam__name {
-  position: relative; align-self: center; margin-top: 14px; padding: 10px 22px; border-radius: 20px;
-  background: rgba(255, 255, 255, 0.94); color: var(--text); text-align: center; display: flex; flex-direction: column; gap: 4px;
+
+/* 하단 패널 */
+.cam__bottom {
+  position: relative; margin-top: auto; padding: 28px 0 calc(var(--safe-bottom) + 14px);
+  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75) 30%, rgba(0, 0, 0, 0.85));
+  display: flex; flex-direction: column; gap: 12px;
 }
-.cam__name b { font-size: 26px; }
-.cam__chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 80vw; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 14px; border-radius: 999px;
-  border: 0; font-size: 16px; font-weight: 700; background: var(--mint-light); color: var(--mint);
-}
-.chip--MALE { background: var(--blue-light); color: var(--blue-dark); }
-.chip--FEMALE { background: var(--pink-light); color: var(--pink); }
-.chip__x { font-size: 11px; opacity: 0.7; }
-.chip:disabled { opacity: 0.6; }
-.cam__clear { border: 0; background: transparent; color: var(--mint); font-weight: 700; font-size: 12px; padding: 0; text-decoration: underline; }
-.cam__more {
-  width: 60px; height: 60px; border-radius: 30px; border: 2px dashed rgba(255, 255, 255, 0.5);
-  display: flex; align-items: center; justify-content: center; font-size: 26px; color: rgba(255, 255, 255, 0.8); box-sizing: border-box; margin: 3px;
-}
+.cam__strip { display: flex; gap: 10px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
+.cam__strip::-webkit-scrollbar { display: none; }
+.cam__dog { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: transparent; color: rgba(255, 255, 255, 0.8); padding: 0; flex: 0 0 auto; width: 60px; }
+.cam__dog--on { color: var(--white); }
+.cam__dog-name { font-size: 11px; max-width: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cam__dog--on .cam__dog-name { font-weight: 700; }
 .cam__dog-av { position: relative; display: inline-block; }
 .cam__dog-check {
-  position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 11px;
-  background: var(--mint); color: var(--white); font-size: 12px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; border: 2px solid var(--text);
+  position: absolute; right: -1px; bottom: -1px; width: 20px; height: 20px; border-radius: 10px;
+  background: var(--mint); color: var(--white); font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; border: 2px solid #111;
 }
-.cam__dog--on { color: var(--mint-mid); }
-.cam__bottom {
-  position: relative; margin-top: auto; background: rgba(17, 24, 39, 0.72); padding: 14px 0 calc(var(--safe-bottom) + 12px);
-  display: flex; flex-direction: column; gap: 14px;
+.cam__more {
+  width: 52px; height: 52px; border-radius: 26px; border: 2px dashed rgba(255, 255, 255, 0.4);
+  display: flex; align-items: center; justify-content: center; font-size: 22px; color: rgba(255, 255, 255, 0.7); box-sizing: border-box; margin: 3px;
 }
-.cam__strip { display: flex; gap: 14px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; }
-.cam__strip::-webkit-scrollbar { display: none; }
-.cam__dog { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--white); font-size: 12px; padding: 0; flex: 0 0 auto; }
-.cam__shots { display: flex; flex-direction: column; gap: 6px; }
-.cam__shots-head { display: flex; justify-content: space-between; padding: 0 20px; font-size: 12px; font-weight: 700; }
-.cam__shots-row { display: flex; gap: 6px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; min-height: 56px; }
+.cam__shots-row { display: flex; gap: 6px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
 .cam__shots-row::-webkit-scrollbar { display: none; }
-.cam__shot { position: relative; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; background: rgba(255, 255, 255, 0.15); flex: 0 0 auto; }
+.cam__shot { position: relative; width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: rgba(255, 255, 255, 0.12); flex: 0 0 auto; }
 .cam__shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cam__shot-no {
-  position: absolute; left: 3px; top: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
-  background: rgba(17, 24, 39, 0.7); color: var(--white); font-size: 10px; font-weight: 700;
+  position: absolute; left: 2px; top: 2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
+  background: rgba(0, 0, 0, 0.65); color: var(--white); font-size: 9px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
-.cam__controls { display: flex; align-items: center; justify-content: space-between; padding: 0 36px; }
-.cam__side { width: 52px; height: 52px; border-radius: 16px; border: 0; background: var(--mint-light); color: var(--mint); font-weight: 700; }
-.cam__side--album { background: rgba(255, 255, 255, 0.18); color: var(--white); }
-.cam__side:disabled { opacity: 0.5; }
-.cam__toast {
-  position: absolute; left: 50%; bottom: calc(var(--safe-bottom) + 200px); transform: translateX(-50%);
-  background: rgba(17, 24, 39, 0.8); color: var(--white); font-size: 13px; font-weight: 700;
-  padding: 8px 14px; border-radius: 999px; white-space: nowrap;
-}
-.cam__flash { position: absolute; inset: 0; background: var(--white); pointer-events: none; animation: cam-flash 260ms ease-out forwards; z-index: 3; }
-@keyframes cam-flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
-.cam__pill--bump { animation: cam-bump 300ms ease-out; }
-@keyframes cam-bump { 0% { transform: scale(1); } 40% { transform: scale(1.18); background: var(--mint); } 100% { transform: scale(1); } }
-.cam__toast--saved { background: var(--mint); bottom: calc(var(--safe-bottom) + 240px); }
 .cam__shot--new { animation: cam-pop 320ms cubic-bezier(0.2, 0.8, 0.2, 1); outline: 2px solid var(--mint-mid); outline-offset: -2px; }
 @keyframes cam-pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
-.cam__shutter:active { transform: scale(0.9); }
-.cam__shutter:active span { transform: scale(0.85); }
-.cam__shutter, .cam__shutter span { transition: transform 90ms ease-out; }
+
+/* 셔터 줄 */
+.cam__controls { display: flex; align-items: center; justify-content: space-between; padding: 4px 40px 0; }
+.cam__side {
+  position: relative; width: 48px; height: 48px; border-radius: 14px; border: 0; background: rgba(255, 255, 255, 0.16); color: var(--white);
+  display: flex; align-items: center; justify-content: center; overflow: visible;
+}
+.cam__side:disabled { opacity: 0.4; }
+.cam__side--last { overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.5); background: rgba(255, 255, 255, 0.1); }
+.cam__side--last img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cam__side-badge {
+  position: absolute; right: -6px; top: -6px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+  background: var(--mint); color: var(--white); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; z-index: 1;
+}
 .cam__shutter {
-  width: 76px; height: 76px; border-radius: 38px; border: 5px solid var(--white); background: var(--mint);
+  width: 74px; height: 74px; border-radius: 37px; border: 4px solid var(--white); background: transparent;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
-.cam__shutter span { width: 54px; height: 54px; border-radius: 27px; background: var(--mint-mid); display: block; }
-.cam__shutter--rec { background: var(--pink); }
-.cam__shutter--rec span { width: 28px; height: 28px; border-radius: 8px; }
+.cam__shutter span { width: 60px; height: 60px; border-radius: 30px; background: var(--white); display: block; }
+.cam__shutter--video span { background: #ef4444; width: 56px; height: 56px; border-radius: 28px; }
+.cam__shutter--rec span { width: 28px; height: 28px; border-radius: 7px; background: #ef4444; }
+.cam__shutter--rec { animation: rec-pulse 1.2s ease-in-out infinite; }
+@keyframes rec-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); } 50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); } }
+.cam__shutter:active { transform: scale(0.92); }
+.cam__shutter:active span { transform: scale(0.88); }
+.cam__shutter, .cam__shutter span { transition: transform 90ms ease-out; }
+.cam__shutter:disabled { opacity: 0.4; }
+.cam__debug { text-align: center; font-size: 10px; color: rgba(255, 255, 255, 0.4); }
+.cam__flash { position: absolute; inset: 0; background: var(--white); pointer-events: none; animation: cam-flash 260ms ease-out forwards; z-index: 3; }
+@keyframes cam-flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+.cam__toast {
+  position: absolute; left: 50%; bottom: calc(var(--safe-bottom) + 200px); transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75); color: var(--white); font-size: 13px; font-weight: 700;
+  padding: 8px 14px; border-radius: 999px; white-space: nowrap; backdrop-filter: blur(8px);
+}
+.cam__toast--saved { background: var(--mint); bottom: calc(var(--safe-bottom) + 240px); }
 .cam__center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
 
 /* 세그먼트(밝은 배경용)·배정 스트립 */

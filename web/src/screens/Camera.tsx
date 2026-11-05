@@ -237,6 +237,9 @@ export function CameraScreen() {
     }
   }, [sessionId, shotCount, navigate]);
 
+  const lastShot = stripMedia[stripMedia.length - 1] ?? sessionMedia[sessionMedia.length - 1] ?? null;
+  const dogCountLabel = attended.length > 0 ? `등원 ${attended.length}` : `전체 ${allDogs.length}`;
+
   return (
     <div className="cam">
       <video ref={videoRef} className="preview" playsInline muted autoPlay />
@@ -244,20 +247,21 @@ export function CameraScreen() {
       {error ? <div className="cam__center">{error}</div> : null}
       {!ready && !error ? <div className="cam__center">카메라 여는 중…</div> : null}
 
+      {/* 상단: 닫기 · 모드 · HQ. 세 개만. */}
       <div className="cam__top">
         <button type="button" className="cam__round" aria-label="촬영 마치고 검수" onClick={close}>✕</button>
-        <div key={shotCount} className={`cam__pill ${shotCount > 0 ? 'cam__pill--bump' : ''}`}>오늘 {shotCount}장</div>
-        {hqAvailable && mode === 'photo' ? (
-          <button type="button" className={`cam__round cam__hq ${hq ? 'cam__hq--on' : ''}`} aria-pressed={hq} disabled={recording} onClick={toggleHq} title="고화질: 기본 카메라로 찍기">
-            HQ
-          </button>
-        ) : null}
         <div className="cam__seg" role="tablist" aria-label="촬영 모드">
           <button type="button" role="tab" aria-selected={mode === 'photo'} className={mode === 'photo' ? 'on' : ''} disabled={recording} onClick={() => setMode('photo')}>사진</button>
           <button type="button" role="tab" aria-selected={mode === 'video'} className={mode === 'video' ? 'on' : ''} disabled={recording} onClick={() => setMode('video')}>영상</button>
         </div>
+        {mode === 'photo' ? (
+          <button type="button" className={`cam__round cam__hq ${hq ? 'cam__hq--on' : ''}`} aria-pressed={hq} onClick={toggleHq} title="고화질: 기본 카메라로 찍기">HQ</button>
+        ) : (
+          <span className="cam__round" style={{ visibility: 'hidden' }} />
+        )}
       </div>
 
+      {/* 가운데: 지금 누구를 찍는지 한 줄. 녹화 중엔 타이머로 바뀐다. */}
       {recording ? (
         <div className="cam__rec" role="status">
           <span className="cam__rec-dot" />
@@ -265,110 +269,87 @@ export function CameraScreen() {
           <span className="cam__rec-max">/ {MAX_VIDEO_MS / 1000}초</span>
           <span className="cam__rec-bar"><span style={{ width: `${Math.min(100, (recMs / MAX_VIDEO_MS) * 100)}%` }} /></span>
         </div>
-      ) : null}
-
-      <div className="cam__name">
-        {selectedDogs.length === 0 ? (
-          <>
-            <b>미지정</b>
-            <span className="sub">아래에서 강아지를 탭하면 그 폴더로 저장돼요</span>
-          </>
-        ) : (
-          <>
-            <div className="cam__chips">
-              {selectedDogs.map((d) => (
-                <button key={d.id} type="button" className={`chip chip--${d.sex}`} disabled={recording} onClick={() => toggleDog(d.id)} aria-label={`${d.name} 해제`}>
-                  {d.name} <span className="chip__x">✕</span>
-                </button>
-              ))}
-            </div>
-            <span className="sub">
-              {selectedDogs.length > 1 ? `${selectedDogs.length}마리 합사 사진으로 저장돼요 · ` : `${selectedDogs[0].name} 폴더로 저장돼요 · `}
-              <button type="button" className="cam__clear" disabled={recording} onClick={clearSelected}>전체 해제</button>
-            </span>
-          </>
-        )}
-      </div>
-
-      <div className="cam__bottom">
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px', fontSize: 12 }}>
-          <b>{attended.length > 0 ? `오늘 등원 ${attended.length}마리` : `전체 ${allDogs.length}마리`}</b>
-          <span style={{ color: '#D1D5DB' }}>
-            {hq && hqAvailable ? '기본 카메라 원본' : resolution ?? ''}
-            {lastSource === 'sensor' ? ' · 센서' : lastSource === 'preview' ? ' · 미리보기' : lastSource === 'native' ? ' · 원본' : ''}
-          </span>
+      ) : selectedDogs.length === 0 ? (
+        <div className="cam__who cam__who--none">미지정 · 아래에서 강아지를 고르세요</div>
+      ) : (
+        <div className="cam__who">
+          <b>{nameLabel}</b>
+          {stripMedia.length > 0 ? <span className="cam__who-count">{stripMedia.length}장</span> : null}
+          <button type="button" className="cam__who-x" aria-label="선택 해제" onClick={clearSelected}>✕</button>
         </div>
+      )}
+
+      {/* 하단: 강아지 줄 → 방금 찍은 사진 줄 → 셔터. */}
+      <div className="cam__bottom">
         <div className="cam__strip">
           {dogs.map((d) => {
             const selected = selectedDogIds.includes(d.id);
             return (
-              <button
-                key={d.id}
-                type="button"
-                className={`cam__dog ${selected ? 'cam__dog--on' : ''}`}
-                aria-pressed={selected}
-                disabled={recording}
-                onClick={() => toggleDog(d.id)}
-              >
+              <button key={d.id} type="button" className={`cam__dog ${selected ? 'cam__dog--on' : ''}`} aria-pressed={selected} disabled={recording} onClick={() => toggleDog(d.id)}>
                 <span className="cam__dog-av">
-                  <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} size={60} selected={selected} />
+                  <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} size={52} selected={selected} />
                   {selected ? <span className="cam__dog-check">✓</span> : null}
                 </span>
-                <span style={{ fontWeight: selected ? 700 : 500 }}>{d.name}</span>
+                <span className="cam__dog-name">{d.name}</span>
               </button>
             );
           })}
           {attended.length > 0 && attended.length < allDogs.length ? (
             <button type="button" className="cam__dog" disabled={recording} onClick={() => setShowAll((v) => !v)}>
               <span className="cam__more">{showAll ? '−' : '+'}</span>
-              <span>{showAll ? '등원만' : '전체'}</span>
+              <span className="cam__dog-name">{showAll ? dogCountLabel : '전체'}</span>
             </button>
           ) : null}
         </div>
-        <ShotStrip items={stripMedia} label={nameLabel} />
+
+        {stripMedia.length > 0 ? <ShotStrip items={stripMedia} /> : null}
+
         <div className="cam__controls">
-          <button type="button" className="cam__side" onClick={close}>폴더</button>
+          <button type="button" className="cam__side cam__side--last" aria-label="촬영 마치고 검수" onClick={close}>
+            {lastShot ? <LastThumb m={lastShot} /> : null}
+            {shotCount > 0 ? <span key={shotCount} className="cam__side-badge cam__pill--bump">{shotCount}</span> : null}
+          </button>
           <button
             type="button"
-            className={`cam__shutter ${recording ? 'cam__shutter--rec' : ''}`}
+            className={`cam__shutter ${mode === 'video' ? 'cam__shutter--video' : ''} ${recording ? 'cam__shutter--rec' : ''}`}
             aria-label={mode === 'photo' ? '촬영' : recording ? '녹화 종료' : '녹화 시작'}
-            title={mode === 'video' ? (recording ? '누르면 녹화 종료' : '누르면 녹화 시작') : undefined}
             disabled={busy || !ready}
             onClick={mode === 'photo' ? takePhoto : toggleRecording}
           >
             <span />
           </button>
-          <button
-            type="button"
-            className="cam__side cam__side--album"
-            aria-label="앨범에서 가져오기"
-            disabled={recording || busy}
-            onClick={() => albumInput.current?.click()}
-          >
-            앨범
+          <button type="button" className="cam__side" aria-label="앨범에서 가져오기" disabled={recording || busy} onClick={() => albumInput.current?.click()}>
+            <AlbumIcon />
           </button>
-          <input
-            ref={hqInput}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: 'none' }}
-            onChange={(e) => onHqPicked(e.target.files)}
-          />
-          <input
-            ref={albumInput}
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={(e) => importFromAlbum(e.target.files)}
-          />
+          <input ref={hqInput} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => onHqPicked(e.target.files)} />
+          <input ref={albumInput} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={(e) => importFromAlbum(e.target.files)} />
         </div>
+        {import.meta.env.DEV ? (
+          <div className="cam__debug">
+            {hq ? '기본 카메라' : resolution ?? ''}{lastSource ? ` · ${lastSource}` : ''}
+          </div>
+        ) : null}
       </div>
+
       {importing ? <div className="cam__toast">{importing}</div> : null}
       {!importing && saved ? <div className="cam__toast cam__toast--saved">✓ {saved}</div> : null}
       {mode === 'video' && noMic && !saved && !importing ? <div className="cam__toast">마이크 권한이 없어 무음으로 녹화돼요</div> : null}
     </div>
+  );
+}
+
+function LastThumb({ m }: { m: MediaItem }) {
+  const url = useObjectUrl(m.thumbBlob ?? m.blob);
+  return url ? <img src={url} alt="" /> : null;
+}
+
+function AlbumIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <circle cx="8.5" cy="10" r="1.5" />
+      <path d="M21 15l-5-5-8 8" />
+    </svg>
   );
 }
 
@@ -378,7 +359,7 @@ function fmtRec(ms: number): string {
 }
 
 /** 선택된 강아지의 이번 세션 사진 줄. 촬영 순서대로, 새 사진이 오른쪽 끝에 붙고 자동으로 끝까지 스크롤. */
-function ShotStrip({ items, label }: { items: MediaItem[]; label: string }) {
+function ShotStrip({ items }: { items: MediaItem[] }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -386,10 +367,6 @@ function ShotStrip({ items, label }: { items: MediaItem[]; label: string }) {
   }, [items.length]);
   return (
     <div className="cam__shots">
-      <div className="cam__shots-head">
-        <span>{label} · {items.length}장</span>
-        {items.length === 0 ? <span style={{ color: '#D1D5DB' }}>아직 찍은 사진이 없어요</span> : null}
-      </div>
       <div ref={ref} className="cam__shots-row">
         {items.map((m, i) => <ShotThumb key={m.id} m={m} index={i + 1} latest={i === items.length - 1} />)}
       </div>
