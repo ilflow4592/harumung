@@ -8,3 +8,5 @@ build/
 .env.*
 .DS_Store
 ios/Pods/
+web/dist/
+web/dev-dist/

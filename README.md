@@ -4,35 +4,39 @@
 
 | 폴더 | 내용 |
 |---|---|
-| `app/` | React Native (Expo, TypeScript). `modules/media-tools`는 영상 변환·트림·무음·프레임 캡처 네이티브 모듈 (Android Media3 / iOS AVFoundation) |
-| `server/` | Kotlin + Spring Boot 4, MySQL 8, Flyway. 보호자 앨범 웹(`/a/{token}`) 포함 |
+| `web/` | 브라우저 PWA. React + Vite + TypeScript. 카메라·녹화·IndexedDB(Dexie). 스토어·Apple 계정 없이 링크로 배포 |
+| `server/` | Kotlin + Spring Boot 4, MySQL 8, Flyway. 보호자 앨범 웹(`/a/{token}`), ffmpeg 미디어 처리, PWA 정적 서빙 |
 
 스펙: Obsidian `startup/애견유치원-사진분류/spec.md`, `dev-spec.md`. 디자인: https://claude.ai/artifact/EgGLUND2Aa2Y1QLXQfm33A
+Expo 네이티브 버전은 커밋 06aeb7c에 보존.
 
-## 앱
+## 웹 (개발)
 
 ```bash
-cd app
+cd web
 npm install
-npx tsc --noEmit            # 타입 검사
-npx expo prebuild           # 네이티브 프로젝트 생성 (Xcode·Android SDK 필요)
-npx expo run:android        # 또는 eas build --profile development
+npm run dev -- --host      # https://<맥 IP>:5173 (카메라는 https 필요, 자체 서명 인증서 경고는 "계속")
+npm run build              # dist/ 생성
 ```
 
-Expo Go는 쓰지 않는다. 네이티브 모듈이 있어서 개발 빌드(dev client)가 필요하다.
+폰에서 열 때: 같은 Wi-Fi, 주소창에 https://<맥 IP>:5173, 인증서 경고 통과, 카메라 허용.
+설치: 사파리 공유 → 홈 화면에 추가 (iOS), 크롬 메뉴 → 홈 화면에 추가 (Android).
 
 ## 서버
 
 ```bash
 cd server
 docker compose up -d        # MySQL 8.4
+brew install ffmpeg         # 영상 변환 (없으면 ffmpeg 테스트는 건너뜀)
 ./gradlew bootRun
 curl localhost:8080/actuator/health
 ```
 
+배포 시 `web/dist/*`를 `server/src/main/resources/static/`에 복사하면 같은 서버에서 앱·API·앨범이 함께 뜬다.
+
 ## 0주차 체크리스트
 
-- [ ] 실기기 3대(안드로이드 구형 1대 포함)에서 촬영·720p 변환
+- [ ] 아이폰 사파리·갤럭시 크롬 실기기에서 촬영·녹화·세션 검수
+- [ ] 앱 전환 후 돌아왔을 때 카메라가 다시 켜지는지
 - [ ] 카카오 비즈니스 채널 개설, 알림톡 템플릿 심사 신청
-- [ ] Apple 개발자 계정, Play 콘솔 계정
-- [ ] EAS 프로젝트 연결 (`npx eas init`)
+- [ ] Docker Desktop 실행 후 Flyway V1 적용 확인

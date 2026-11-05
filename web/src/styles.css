@@ -1,0 +1,160 @@
+/* 하루멍 색 토큰. 디자인 캔버스의 색상 템플릿과 같다. */
+:root {
+  --white: #ffffff;
+  --surface: #f6faf9;
+  --line: #e5e7eb;
+  --text: #111827;
+  --text-2: #4b5563;
+  --mint: #0b7a6b;
+  --mint-mid: #5fd3c0;
+  --mint-light: #d7f3ee;
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+  --blue-mid: #93c5fd;
+  --blue-light: #dbeafe;
+  --pink: #c2256d;
+  --pink-mid: #f9a8d4;
+  --pink-light: #fce7f3;
+  --gray: #f3f4f6;
+  --overlay: rgba(17, 24, 39, 0.55);
+  --r-card: 16px;
+  --r-control: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--white);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button, input, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--blue); text-decoration: none; }
+
+/* 레이아웃 */
+.screen { min-height: 100%; display: flex; flex-direction: column; background: var(--white); }
+.screen--surface { background: var(--surface); }
+.topbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(var(--safe-top) + 8px) 12px 8px;
+  min-height: 56px; background: var(--white); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5;
+}
+.topbar h1 { margin: 0; font-size: 18px; font-weight: 700; flex: 1; }
+.body { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.footer {
+  position: sticky; bottom: 0; padding: 12px 20px calc(var(--safe-bottom) + 12px);
+  background: var(--white); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px;
+}
+.footer--surface { background: var(--surface); }
+
+/* 구성 요소 */
+.btn {
+  min-height: 52px; border-radius: var(--r-control); border: 1.5px solid var(--mint);
+  background: var(--mint); color: var(--white); font-size: 16px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; width: 100%;
+}
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn--outline { background: var(--white); color: var(--mint); }
+.btn--ghost { background: var(--white); color: var(--text); border-color: var(--line); font-weight: 500; }
+.btn--small { min-height: 32px; font-size: 12px; padding: 0 10px; width: auto; border-radius: 999px; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: 12px; border: 0; background: transparent;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 20px; color: var(--text);
+}
+.icon-btn--mint { background: var(--mint-light); color: var(--mint); border-radius: 14px; font-weight: 700; }
+.card { background: var(--white); border-radius: var(--r-card); border: 1px solid var(--line); padding: 14px; }
+.card--row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.badge {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 700;
+}
+.badge--blue { background: var(--blue-light); color: var(--blue-dark); }
+.badge--pink { background: var(--pink-light); color: var(--pink); }
+.badge--mint { background: var(--mint-light); color: var(--mint); }
+.badge--gray { background: var(--gray); color: var(--text-2); }
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
+  border: 3px solid transparent; flex: 0 0 auto;
+}
+.avatar--selected { border-color: var(--mint-mid); }
+.avatar--MALE { background: var(--blue-light); color: var(--blue-dark); }
+.avatar--FEMALE { background: var(--pink-light); color: var(--pink); }
+.sub { font-size: 12px; color: var(--text-2); }
+.title { font-size: 15px; font-weight: 700; }
+.input {
+  height: 48px; border-radius: var(--r-control); border: 1px solid var(--line); padding: 0 14px;
+  font-size: 15px; width: 100%; background: var(--white);
+}
+textarea.input { height: 72px; padding: 12px 14px; resize: none; }
+.label { font-size: 13px; font-weight: 700; }
+.required { color: var(--pink); }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.stat { padding: 12px; border-radius: 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat b { font-size: 20px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.cell {
+  position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--line); border: 0; padding: 0;
+}
+.cell img, .cell video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cell--deleted { opacity: 0.6; outline: 2px solid var(--pink); outline-offset: -2px; }
+.cell__dur {
+  position: absolute; left: 4px; bottom: 4px; background: rgba(17, 24, 39, 0.7); color: var(--white);
+  font-size: 10px; font-weight: 700; border-radius: 6px; padding: 1px 5px;
+}
+.cell__del {
+  position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; border-radius: 11px;
+  background: var(--pink); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+}
+.sexbox {
+  flex: 1; height: 48px; border-radius: var(--r-control); border: 1.5px solid var(--line); background: var(--white);
+  display: flex; align-items: center; gap: 10px; padding: 0 14px; font-weight: 700; font-size: 15px;
+}
+.sexbox input { width: 20px; height: 20px; margin: 0; }
+.sexbox--MALE.checked { background: var(--blue-light); border-color: var(--blue); color: var(--blue-dark); }
+.sexbox--FEMALE.checked { background: var(--pink-light); border-color: var(--pink); color: var(--pink); }
+
+/* 카메라 */
+.cam { position: fixed; inset: 0; background: var(--text); display: flex; flex-direction: column; color: var(--white); }
+.cam video.preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cam__top {
+  position: relative; display: flex; align-items: center; justify-content: space-between;
+  padding: calc(var(--safe-top) + 8px) 12px 0;
+}
+.cam__round {
+  width: 44px; height: 44px; border-radius: 22px; border: 0; background: var(--overlay); color: var(--white);
+  font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center;
+}
+.cam__pill { height: 36px; padding: 0 14px; border-radius: 18px; background: var(--overlay); font-size: 13px; display: flex; align-items: center; }
+.cam__name {
+  position: relative; align-self: center; margin-top: 14px; padding: 10px 22px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.94); color: var(--text); text-align: center; display: flex; flex-direction: column; gap: 4px;
+}
+.cam__name b { font-size: 26px; }
+.cam__bottom {
+  position: relative; margin-top: auto; background: rgba(17, 24, 39, 0.72); padding: 14px 0 calc(var(--safe-bottom) + 12px);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.cam__strip { display: flex; gap: 14px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; }
+.cam__strip::-webkit-scrollbar { display: none; }
+.cam__dog { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--white); font-size: 12px; padding: 0; flex: 0 0 auto; }
+.cam__controls { display: flex; align-items: center; justify-content: space-between; padding: 0 36px; }
+.cam__side { width: 52px; height: 52px; border-radius: 16px; border: 0; background: var(--mint-light); color: var(--mint); font-weight: 700; }
+.cam__shutter {
+  width: 76px; height: 76px; border-radius: 38px; border: 5px solid var(--white); background: var(--mint);
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.cam__shutter span { width: 54px; height: 54px; border-radius: 27px; background: var(--mint-mid); display: block; }
+.cam__shutter--rec { background: var(--pink); }
+.cam__shutter--rec span { width: 28px; height: 28px; border-radius: 8px; }
+.cam__center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+
+/* 설치 안내 */
+.install { background: var(--mint-light); color: var(--mint); border-radius: var(--r-card); padding: 12px 14px; font-size: 13px; line-height: 1.5; }
