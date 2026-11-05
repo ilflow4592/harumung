@@ -57,7 +57,12 @@ export function FolderReviewScreen() {
     try {
       await setFolderReviewed(date, folderDog.id, !reviewed);
       await refresh();
-      say(reviewed ? '검수를 다시 열었어요' : `${folderDog.name} 검수 완료 · 발송 준비됐어요`);
+      if (reviewed) {
+        say('검수를 다시 열었어요');
+      } else {
+        // 완료하면 메인(오늘 폴더)으로 돌아간다. 다음 강아지로 바로 넘어가기 위해.
+        navigate('/folders', { replace: true });
+      }
     } finally { setBusy(false); }
   };
   const say = (text: string) => { setToast(text); window.setTimeout(() => setToast(null), 1500); };
