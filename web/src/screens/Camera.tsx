@@ -417,7 +417,7 @@ export function CameraScreen() {
 
         <div className="cam__controls">
           <button type="button" className="cam__side cam__side--last" aria-label="촬영 마치고 검수" onClick={close}>
-            {lastShot ? <LastThumb m={lastShot} /> : null}
+            <span className="cam__side-thumb">{lastShot ? <LastThumb m={lastShot} /> : null}</span>
             {shotCount > 0 ? <span key={shotCount} className="cam__side-badge cam__pill--bump">{shotCount}</span> : null}
           </button>
           <button
