@@ -5,13 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate, markSessionReviewing } from '../db/repo';
-import { MAX_VIDEO_MS, cameraErrorMessage, capturePhotoBest, hasImageCapture, makeThumbnail, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { MAX_VIDEO_MS, cameraErrorMessage, capturePhotoBest, makeThumbnail, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
 
 const HQ_KEY = 'harumung.hq';
-/** 고화질 모드: 기본 카메라 앱으로 찍어 원본을 가져온다. ImageCapture가 없는 기기(iOS)에서만 의미가 있다. */
-const hqAvailable = !hasImageCapture();
+/** 고화질 모드: 기본 카메라 앱으로 찍어 원본을 가져온다. iOS 사파리도 ImageCapture 객체는 있어서 기능 감지로 못 가른다. 전 기기에 노출. */
+const hqAvailable = true;
 
 export function CameraScreen() {
   const navigate = useNavigate();
