@@ -32,46 +32,92 @@ export function CameraScreen() {
   const [recording, setRecording] = useState(false);
   const [recMs, setRecMs] = useState(0); // 녹화 경과 시간
   // 줌. 기기 줌이 되면 렌즈 줌, 아니면 디지털 줌(미리보기 확대 + 캔버스 크롭).
+  // 손가락을 따라 즉시 반영해야 하므로 미리보기 transform은 state를 거치지 않고 ref로 직접 쓴다.
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
   const zoomRange = useRef<{ min: number; max: number } | null>(null);
   const [nativeZoom, setNativeZoom] = useState(false);
+  const nativeRef = useRef(false);
   const DIGITAL_MAX = 3;
   const zoomMax = nativeZoom ? Math.min(zoomRange.current?.max ?? DIGITAL_MAX, 5) : DIGITAL_MAX;
-  const zoomMin = nativeZoom ? (zoomRange.current?.min ?? 1) : 1;
-  const pinch = useRef<{ startDist: number; startZoom: number } | null>(null);
-  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const zoomApplyTimer = useRef<number | undefined>(undefined);
+  const gestureRef = useRef<HTMLDivElement>(null);
+  const applying = useRef(false);
+  const pendingZoom = useRef<number | null>(null);
+
+  /** 렌즈 줌을 순서대로 적용. 진행 중이면 마지막 값만 남겨 뒀다 이어서 적용. 실패하면 디지털 줌으로 전환. */
+  const pushNativeZoom = useCallback(async (z: number) => {
+    if (applying.current) { pendingZoom.current = z; return; }
+    applying.current = true;
+    try {
+      let target: number | null = z;
+      while (target !== null) {
+        const ok = await applyNativeZoom(streamRef.current, target);
+        if (!ok) {
+          nativeRef.current = false;
+          setNativeZoom(false);
+          if (videoRef.current) videoRef.current.style.transform = `scale(${zoomRef.current})`;
+          break;
+        }
+        target = pendingZoom.current;
+        pendingZoom.current = null;
+      }
+    } finally {
+      applying.current = false;
+    }
+  }, []);
 
   const changeZoom = useCallback((next: number) => {
-    const z = Math.round(Math.min(zoomMax, Math.max(zoomMin, next)) * 10) / 10;
-    setZoom(z);
-    if (nativeZoom) {
-      // 제약 적용은 비싸서 60ms로 묶는다
-      window.clearTimeout(zoomApplyTimer.current);
-      zoomApplyTimer.current = window.setTimeout(() => { void applyNativeZoom(streamRef.current, z); }, 60);
+    const max = nativeRef.current ? Math.min(zoomRange.current?.max ?? DIGITAL_MAX, 5) : DIGITAL_MAX;
+    const min = nativeRef.current ? (zoomRange.current?.min ?? 1) : 1;
+    const z = Math.min(max, Math.max(min, next));
+    zoomRef.current = z;
+    setZoom(Math.round(z * 10) / 10);
+    if (nativeRef.current) {
+      void pushNativeZoom(z);
+    } else if (videoRef.current) {
+      videoRef.current.style.transform = `scale(${z})`;
     }
-  }, [nativeZoom, zoomMax, zoomMin]);
+  }, [pushNativeZoom]);
 
-  const onPointerDown = (e: React.PointerEvent) => {
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 2) {
-      const [a, b] = [...pointers.current.values()];
-      pinch.current = { startDist: Math.hypot(a.x - b.x, a.y - b.y), startZoom: zoom };
-    }
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!pointers.current.has(e.pointerId)) return;
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size === 2 && pinch.current) {
-      const [a, b] = [...pointers.current.values()];
-      const dist = Math.hypot(a.x - b.x, a.y - b.y);
-      changeZoom(pinch.current.startZoom * (dist / pinch.current.startDist));
-    }
-  };
-  const onPointerUp = (e: React.PointerEvent) => {
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) pinch.current = null;
-  };
+  // 핀치: touch 이벤트를 직접 단다. 사파리는 두 손가락이 닿으면 pointer 이벤트를 끊고 페이지 줌으로 가져가므로
+  // touchmove에서 preventDefault(passive: false)와 gesturestart 차단이 필요하다.
+  useEffect(() => {
+    const el = gestureRef.current;
+    if (!el) return;
+    let startDist = 0;
+    let startZoom = 1;
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        startDist = dist(e.touches);
+        startZoom = zoomRef.current;
+      }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && startDist > 0) {
+        e.preventDefault();
+        changeZoom(startZoom * (dist(e.touches) / startDist));
+      }
+    };
+    const onEnd = (e: TouchEvent) => { if (e.touches.length < 2) startDist = 0; };
+    const block = (e: Event) => e.preventDefault();
+    el.addEventListener('touchstart', onStart, { passive: false });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    el.addEventListener('gesturestart', block);
+    el.addEventListener('gesturechange', block);
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+      el.removeEventListener('gesturestart', block);
+      el.removeEventListener('gesturechange', block);
+    };
+  }, [changeZoom]);
+
   /** 줌 칩 탭: 1× → 2× → 3× → 1× */
   const cycleZoom = () => {
     const steps = [1, 2, 3].filter((v) => v <= zoomMax);
@@ -131,8 +177,12 @@ export function CameraScreen() {
         setResolution(streamResolution(s));
         const range = nativeZoomRange(s);
         zoomRange.current = range;
+        nativeRef.current = !!range;
         setNativeZoom(!!range);
-        setZoom(range ? Math.max(1, range.min) : 1);
+        const z0 = range ? Math.max(1, range.min) : 1;
+        zoomRef.current = z0;
+        setZoom(z0);
+        if (videoRef.current) videoRef.current.style.transform = range ? '' : `scale(${z0})`;
         setReady(true);
         setError(null);
       } catch (e) {
@@ -176,7 +226,7 @@ export function CameraScreen() {
     setFlash((n) => n + 1);
     shutterFeedback();
     try {
-      const { blob, source } = await capturePhotoBest(videoRef.current, streamRef.current, nativeZoom ? 1 : zoom);
+      const { blob, source } = await capturePhotoBest(videoRef.current, streamRef.current, nativeRef.current ? 1 : zoomRef.current);
       setLastSource(source);
       const thumbBlob = await makeThumbnail(blob);
       await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob, thumbBlob, mimeType: blob.type || 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
@@ -186,7 +236,7 @@ export function CameraScreen() {
     } finally {
       setBusy(false);
     }
-  }, [sessionId, busy, hq, zoom, nativeZoom, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length]);
+  }, [sessionId, busy, hq, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length]);
 
   /** 고화질 모드 결과(기본 카메라 앱 원본). 앨범 가져오기와 같은 경로로 저장. */
   const onHqPicked = useCallback(
@@ -293,15 +343,8 @@ export function CameraScreen() {
 
   return (
     <div className="cam">
-      <video ref={videoRef} className="preview" playsInline muted autoPlay style={nativeZoom ? undefined : { transform: `scale(${zoom})` }} />
-      <div
-        className="cam__gesture"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onPointerLeave={onPointerUp}
-      />
+      <video ref={videoRef} className="preview" playsInline muted autoPlay />
+      <div ref={gestureRef} className="cam__gesture" />
       {flash > 0 ? <div key={flash} className="cam__flash" /> : null}
       {error ? <div className="cam__center">{error}</div> : null}
       {!ready && !error ? <div className="cam__center">카메라 여는 중…</div> : null}
@@ -388,7 +431,7 @@ export function CameraScreen() {
         </div>
         {import.meta.env.DEV ? (
           <div className="cam__debug">
-            {hq ? '기본 카메라' : resolution ?? ''}{lastSource ? ` · ${lastSource}` : ''}
+            {hq ? '기본 카메라' : resolution ?? ''}{lastSource ? ` · ${lastSource}` : ''} · {nativeZoom ? '렌즈 줌' : '디지털 줌'}
           </div>
         ) : null}
       </div>

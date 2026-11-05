@@ -113,12 +113,14 @@ export function nativeZoomRange(stream: MediaStream | null): ZoomCapability | nu
   return z && typeof z.min === 'number' && typeof z.max === 'number' && z.max > z.min ? z : null;
 }
 
+/** 렌즈 줌 적용. 적용 뒤 실제 settings.zoom이 바뀌었는지까지 확인한다 (iOS는 조용히 무시할 수 있다). */
 export async function applyNativeZoom(stream: MediaStream | null, zoom: number): Promise<boolean> {
   const track = stream?.getVideoTracks()[0];
   if (!track) return false;
   try {
     await track.applyConstraints({ advanced: [{ zoom } as MediaTrackConstraintSet] });
-    return true;
+    const applied = (track.getSettings() as MediaTrackSettings & { zoom?: number }).zoom;
+    return typeof applied === 'number' && Math.abs(applied - zoom) < 0.15;
   } catch {
     return false;
   }
