@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["MediaToolsModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.mediatools.MediaToolsModule"]
+  }
+}

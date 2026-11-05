@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: harumung-server
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/harumung?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=UTC}
+    username: ${DB_USER:harumung}
+    password: ${DB_PASSWORD:harumung}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+harumung:
+  album:
+    base-url: ${ALBUM_BASE_URL:http://localhost:8080}
+    expire-days: 30
+  storage:
+    bucket: ${STORAGE_BUCKET:harumung-dev}
+    endpoint: ${STORAGE_ENDPOINT:}
+  crypto:
+    phone-key: ${PHONE_ENC_KEY:dev-only-change-me-32-bytes-long!}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>하루멍</title>
+  <style>
+    :root { --mint: #0B7A6B; --text: #111827; --sub: #4B5563; --line: #E5E7EB; }
+    body { margin: 0; font-family: 'Noto Sans KR', system-ui, sans-serif; color: var(--text); background: #fff; }
+    main { max-width: 480px; margin: 0 auto; padding: 20px; }
+    .brand { color: var(--mint); font-weight: 700; font-size: 13px; }
+    h1 { font-size: 26px; margin: 8px 0 4px; }
+    .sub { color: var(--sub); font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
+    .grid div { aspect-ratio: 1; border-radius: 12px; background: #E5E7EB; }
+    footer { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 12px; font-size: 12px; color: var(--sub); text-align: center; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">하루멍</div>
+  <h1>아이의 하루</h1>
+  <p class="sub">앨범 토큰 <span th:text="${token}">token</span> · 사진은 3주차에 연결됩니다</p>
+  <div class="grid"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+  <footer>로그인 없이 이 링크로만 열려요. 하루멍으로 보냄</footer>
+</main>
+</body>
+</html>
