@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
-import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKept, listUnassignedKept, localDate, removeDogFromMedia } from '../db/repo';
+import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKept, listReviewedDogIds, listUnassignedKept, localDate, removeDogFromMedia, setFolderReviewed } from '../db/repo';
 
 const UNASSIGNED = 'unassigned';
 
@@ -25,6 +25,9 @@ export function FolderReviewScreen() {
     queryFn: () => (isUnassigned ? listUnassignedKept() : listDogKept(dogId)),
   });
 
+  const date = localDate();
+  const { data: reviewedIds = [] } = useQuery({ queryKey: ['folder-reviews', date], queryFn: () => listReviewedDogIds(date) });
+  const reviewed = !isUnassigned && reviewedIds.includes(dogId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sheet, setSheet] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -43,7 +46,19 @@ export function FolderReviewScreen() {
       qc.invalidateQueries({ queryKey: ['unassigned-kept'] }),
       qc.invalidateQueries({ queryKey: ['dog-kept'] }),
       qc.invalidateQueries({ queryKey: ['folders'] }),
+      qc.invalidateQueries({ queryKey: ['folder-reviews'] }),
     ]);
+  };
+
+  /** 검수 완료 토글. 완료되면 폴더 목록에 체크가 붙고 발송 준비로 잡힌다. */
+  const toggleReviewed = async () => {
+    if (!folderDog) return;
+    setBusy(true);
+    try {
+      await setFolderReviewed(date, folderDog.id, !reviewed);
+      await refresh();
+      say(reviewed ? '검수를 다시 열었어요' : `${folderDog.name} 검수 완료 · 발송 준비됐어요`);
+    } finally { setBusy(false); }
   };
   const say = (text: string) => { setToast(text); window.setTimeout(() => setToast(null), 1500); };
 
@@ -106,6 +121,13 @@ export function FolderReviewScreen() {
         ) : (
           <span className="sub">{isUnassigned ? '사진을 고른 뒤 아래에서 강아지를 정하세요' : '사진을 고르면 다른 아이 추가·폴더에서 빼기·삭제를 할 수 있어요'} · {items.length}개</span>
         )}
+        {reviewed ? (
+          <div className="card card--row" style={{ borderColor: 'var(--mint)', background: 'var(--mint-light)', color: 'var(--mint)' }}>
+            <span className="check check--on">✓</span>
+            <span style={{ flex: 1, fontWeight: 700 }}>검수 완료 · 발송 준비됐어요</span>
+            <span className="sub" style={{ color: 'var(--mint)' }}>새 사진이 들어오면 풀려요</span>
+          </div>
+        ) : null}
         <div className="grid3">
           {items.map((m) => <Cell key={m.id} m={m} dogs={dogs} selected={selected.has(m.id)} onToggle={() => toggle(m.id)} />)}
         </div>
@@ -121,6 +143,12 @@ export function FolderReviewScreen() {
               삭제 ({selected.size})
             </button>
           </div>
+        </footer>
+      ) : folderDog && items.length > 0 ? (
+        <footer className="footer">
+          <button type="button" className={`btn ${reviewed ? 'btn--ghost' : ''}`} disabled={busy} onClick={toggleReviewed}>
+            {reviewed ? '검수 다시 열기' : '검수 완료 · 발송 준비'}
+          </button>
         </footer>
       ) : null}
 

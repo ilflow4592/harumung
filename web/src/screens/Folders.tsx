@@ -49,7 +49,7 @@ export function FoldersScreen() {
         <div className="stats">
           <div className="stat" style={{ background: 'var(--surface)' }}><span className="sub">촬영</span><b>{total}</b></div>
           <div className="stat" style={{ background: 'var(--pink-light)', color: 'var(--pink)' }}><span style={{ fontSize: 12 }}>미지정</span><b>{unassigned}</b></div>
-          <div className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>발송 대기</span><b>{perDog.filter((f) => f.count > 0).length}</b></div>
+          <div className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>발송 준비</span><b>{perDog.filter((f) => f.reviewed).length}</b></div>
         </div>
         <SearchBox value={query} onChange={setQuery} />
       </header>
@@ -96,10 +96,11 @@ export function FoldersScreen() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="title">{f.dog.name}</span>
                 <SexBadge sex={f.dog.sex} />
+                {f.reviewed ? <span className="check check--on check--sm" aria-label="검수 완료">✓</span> : null}
               </span>
               <span className="sub">사진 {f.count}장 · A컷 {f.aCut}장</span>
             </span>
-            <Chip label={f.count > 0 ? '발송 대기' : '촬영 중'} tone={f.count > 0 ? 'blue' : 'gray'} />
+            <Chip label={f.reviewed ? '발송 준비' : f.count > 0 ? '검수 전' : '촬영 중'} tone={f.reviewed ? 'mint' : f.count > 0 ? 'blue' : 'gray'} />
           </button>
         ))}
       </main>

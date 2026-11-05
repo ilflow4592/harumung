@@ -32,6 +32,14 @@ export interface Attendance {
   checkedAt: string;
 }
 
+/** 강아지 폴더 검수 완료 표시. 날짜별. 새 사진이 들어오면 지워진다. */
+export interface FolderReview {
+  id: string;
+  date: string;
+  dogId: string;
+  reviewedAt: string;
+}
+
 export interface ShootSession {
   id: string;
   startedAt: string;
@@ -65,6 +73,7 @@ class HarumungDB extends Dexie {
   shootSessions!: EntityTable<ShootSession, 'id'>;
   media!: EntityTable<MediaItem, 'id'>;
   attendance!: EntityTable<Attendance, 'id'>;
+  folderReviews!: EntityTable<FolderReview, 'id'>;
 
   constructor() {
     super('harumung');
@@ -77,6 +86,9 @@ class HarumungDB extends Dexie {
     });
     this.version(2).stores({
       attendance: 'id, date, dogId, [date+dogId]',
+    });
+    this.version(3).stores({
+      folderReviews: 'id, date, dogId, [date+dogId]',
     });
   }
 }

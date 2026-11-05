@@ -74,6 +74,7 @@ a { color: var(--blue); text-decoration: none; }
   width: 28px; height: 28px; border-radius: 14px; border: 2px solid var(--line); background: var(--white);
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex: 0 0 auto;
 }
+.check--sm { width: 20px; height: 20px; font-size: 11px; }
 .check--on { background: var(--mint); border-color: var(--mint); color: var(--white); }
 .card--row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
 .badge {

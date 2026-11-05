@@ -68,6 +68,27 @@ export async function setAttendance(date: string, dogIds: string[]): Promise<voi
   });
 }
 
+// ---------- 폴더 검수 완료 ----------
+
+export async function listReviewedDogIds(date: string): Promise<string[]> {
+  const rows = await db.folderReviews.where('date').equals(date).toArray();
+  return rows.map((r) => r.dogId);
+}
+
+export async function setFolderReviewed(date: string, dogId: string, reviewed: boolean): Promise<void> {
+  await db.transaction('rw', db.folderReviews, async () => {
+    await db.folderReviews.where('[date+dogId]').equals([date, dogId]).delete();
+    if (reviewed) await db.folderReviews.add({ id: ulid(), date, dogId, reviewedAt: now() });
+  });
+}
+
+/** 사진이 새로 들어온 강아지는 오늘 검수 완료를 푼다. 저장·배정 경로에서 호출. */
+async function clearFolderReviewed(dogIds: string[]): Promise<void> {
+  if (dogIds.length === 0) return;
+  const date = localDate();
+  for (const dogId of new Set(dogIds)) await db.folderReviews.where('[date+dogId]').equals([date, dogId]).delete();
+}
+
 // ---------- 세션 ----------
 
 export async function getOrCreateOpenSession(): Promise<string> {
@@ -129,25 +150,28 @@ export async function finishSessionReview(
   keptIds: string[],
   dogIdsById: Record<string, string[]> = {},
 ): Promise<void> {
-  await db.transaction('rw', db.media, db.shootSessions, async () => {
+  await db.transaction('rw', db.media, db.shootSessions, db.folderReviews, async () => {
     const pending = (await db.media.where('sessionId').equals(sessionId).toArray()).filter(
       (m) => m.reviewStatus === 'pending',
     );
     const keptSet = new Set(keptIds);
+    const touched: string[] = [];
     for (const m of pending) {
       if (keptSet.has(m.id)) {
         const dogIds = dogIdsById[m.id];
         await db.media.update(m.id, dogIds ? { reviewStatus: 'kept', uploadStatus: 'queued', dogIds } : { reviewStatus: 'kept', uploadStatus: 'queued' });
+        touched.push(...(dogIds ?? m.dogIds));
       } else {
         await db.media.update(m.id, { reviewStatus: 'deleted', blob: null, thumbBlob: null });
       }
     }
     await db.shootSessions.update(sessionId, { status: 'saved', closedAt: now() });
+    await clearFolderReviewed(touched);
   });
 }
 
 export type FolderSummary = {
-  perDog: { dog: Dog; count: number; aCut: number }[];
+  perDog: { dog: Dog; count: number; aCut: number; reviewed: boolean }[];
   unassigned: number;
 };
 
@@ -159,9 +183,10 @@ export async function listTodayFolders(dateIso: string): Promise<FolderSummary> 
   );
   const unassigned = kept.filter((m) => m.dogIds.length === 0).length;
   const dogs = await listActiveDogs();
+  const reviewed = new Set(await listReviewedDogIds(localDate()));
   const perDog = dogs.map((dog) => {
     const mine = kept.filter((m) => m.dogIds.includes(dog.id));
-    return { dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length };
+    return { dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length, reviewed: reviewed.has(dog.id) };
   });
   return { perDog, unassigned };
 }
@@ -174,13 +199,14 @@ export async function listUnassignedKept(): Promise<MediaItem[]> {
 
 /** 폴더 검수: 선택 사진들에 강아지들을 붙인다 (이미 있으면 그대로). 합사 사진은 여러 마리. */
 export async function addDogsToMedia(ids: string[], dogIds: string[]): Promise<void> {
-  await db.transaction('rw', db.media, async () => {
+  await db.transaction('rw', db.media, db.folderReviews, async () => {
     for (const id of ids) {
       const m = await db.media.get(id);
       if (!m) continue;
       const merged = [...m.dogIds, ...dogIds.filter((d) => !m.dogIds.includes(d))];
       if (merged.length !== m.dogIds.length) await db.media.update(id, { dogIds: merged });
     }
+    await clearFolderReviewed(dogIds);
   });
 }
 
