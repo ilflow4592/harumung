@@ -132,6 +132,10 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
   width: 44px; height: 44px; border-radius: 22px; border: 0; background: var(--overlay); color: var(--white);
   font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center;
 }
+.cam__seg { display: flex; height: 36px; padding: 3px; border-radius: 18px; background: var(--overlay); gap: 2px; }
+.cam__seg button { border: 0; background: transparent; color: rgba(255, 255, 255, 0.75); font-size: 13px; font-weight: 700; padding: 0 12px; border-radius: 15px; }
+.cam__seg button.on { background: var(--white); color: var(--text); }
+.cam__seg button:disabled { opacity: 0.5; }
 .cam__pill { height: 36px; padding: 0 14px; border-radius: 18px; background: var(--overlay); font-size: 13px; display: flex; align-items: center; }
 .cam__name {
   position: relative; align-self: center; margin-top: 14px; padding: 10px 22px; border-radius: 20px;

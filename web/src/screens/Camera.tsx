@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listSessionMedia, markSessionReviewing } from '../db/repo';
-import { capturePhoto, makeThumbnail, openCamera, startRecording, stopStream, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { cameraErrorMessage, capturePhoto, makeThumbnail, openCamera, openMic, startRecording, stopStream, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
 
@@ -13,6 +13,8 @@ export function CameraScreen() {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const micRef = useRef<MediaStream | null>(null);
+  const [noMic, setNoMic] = useState(false);
   const recRef = useRef<RecordingHandle | null>(null);
   const albumInput = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState<string | null>(null);
@@ -46,13 +48,14 @@ export function CameraScreen() {
     return sessionMedia.filter((m) => (key ? m.dogIds.includes(key) : m.dogIds.length === 0));
   }, [sessionMedia, selectedDogIds]);
 
-  // 스트림 열기. 화면 복귀(visibilitychange) 시 멈춘 스트림을 다시 연다 (iOS 사파리 대응).
+  // 카메라 스트림은 화면 진입 시 한 번만 연다. 사진/영상 전환으로는 다시 열지 않는다(iOS에서 재오픈이 실패하던 원인).
+  // 화면 복귀(visibilitychange) 시 멈춘 트랙이 있으면 다시 연다.
   useEffect(() => {
     let cancelled = false;
     const open = async () => {
       stopStream(streamRef.current);
       try {
-        const s = await openCamera(mode === 'video');
+        const s = await openCamera();
         if (cancelled) { stopStream(s); return; }
         streamRef.current = s;
         if (videoRef.current) {
@@ -61,20 +64,26 @@ export function CameraScreen() {
         }
         setReady(true);
         setError(null);
-      } catch {
-        setError('카메라 권한이 필요해요. 브라우저 설정에서 카메라를 허용해 주세요.');
+      } catch (e) {
+        setError(cameraErrorMessage(e));
       }
     };
     open();
-    const onVisible = () => { if (document.visibilityState === 'visible') open(); };
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const alive = streamRef.current?.getVideoTracks().some((t) => t.readyState === 'live');
+      if (!alive) open();
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
       stopStream(streamRef.current);
       streamRef.current = null;
+      stopStream(micRef.current);
+      micRef.current = null;
     };
-  }, [mode]);
+  }, []);
 
   useEffect(() => {
     if (!sessionId) getOrCreateOpenSession().then(setSession);
@@ -105,7 +114,20 @@ export function CameraScreen() {
     if (!sessionId || !streamRef.current) return;
     if (recording) { recRef.current?.stop(); return; }
     const dogIdsAtStart = [...selectedDogIds]; // 녹화 시작 시점의 지정 강아지로 고정
-    const handle = startRecording(streamRef.current);
+    // 마이크는 첫 녹화 때 한 번만 요청. 거부되면 무음으로 녹화하고 안내만 띄운다.
+    if (!micRef.current) {
+      micRef.current = await openMic();
+      setNoMic(!micRef.current);
+    }
+    const camera = streamRef.current;
+    if (!camera) return;
+    let handle: RecordingHandle;
+    try {
+      handle = startRecording(camera, micRef.current);
+    } catch (e) {
+      setError(`녹화를 시작하지 못했어요. (${String(e)})`);
+      return;
+    }
     recRef.current = handle;
     setRecording(true);
     handle.done
@@ -173,9 +195,10 @@ export function CameraScreen() {
       <div className="cam__top">
         <button type="button" className="cam__round" aria-label="촬영 마치고 검수" onClick={close}>✕</button>
         <div key={shotCount} className={`cam__pill ${shotCount > 0 ? 'cam__pill--bump' : ''}`}>오늘 {shotCount}장</div>
-        <button type="button" className="cam__round" disabled={recording} onClick={() => setMode(mode === 'photo' ? 'video' : 'photo')}>
-          {mode === 'photo' ? '영상' : '사진'}
-        </button>
+        <div className="cam__seg" role="tablist" aria-label="촬영 모드">
+          <button type="button" role="tab" aria-selected={mode === 'photo'} className={mode === 'photo' ? 'on' : ''} disabled={recording} onClick={() => setMode('photo')}>사진</button>
+          <button type="button" role="tab" aria-selected={mode === 'video'} className={mode === 'video' ? 'on' : ''} disabled={recording} onClick={() => setMode('video')}>영상</button>
+        </div>
       </div>
 
       <div className="cam__name">
@@ -243,6 +266,7 @@ export function CameraScreen() {
       </div>
       {importing ? <div className="cam__toast">{importing}</div> : null}
       {!importing && saved ? <div className="cam__toast cam__toast--saved">✓ {saved}</div> : null}
+      {mode === 'video' && noMic && !saved && !importing ? <div className="cam__toast">마이크 권한이 없어 무음으로 녹화돼요</div> : null}
     </div>
   );
 }

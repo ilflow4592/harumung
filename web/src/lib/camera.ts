@@ -2,12 +2,40 @@
 
 export const MAX_VIDEO_MS = 30_000;
 
-export async function openCamera(withAudio: boolean): Promise<MediaStream> {
+/** 후면 카메라 영상 스트림만 연다. 마이크는 녹화 시작 때 따로 연다(권한 요청 분리, iOS 재오픈 실패 방지). */
+export async function openCamera(): Promise<MediaStream> {
   // 후면 카메라, 가능하면 1080p. 기기가 못 주면 가장 가까운 해상도로 떨어진다.
   return navigator.mediaDevices.getUserMedia({
     video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-    audio: withAudio,
+    audio: false,
   });
+}
+
+/** 마이크 스트림. 거부되거나 없으면 null — 영상은 무음으로 녹화한다. */
+export async function openMic(): Promise<MediaStream | null> {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch {
+    return null;
+  }
+}
+
+/** getUserMedia 실패 원인을 사용자 문장으로. */
+export function cameraErrorMessage(e: unknown): string {
+  const name = (e as { name?: string })?.name ?? '';
+  switch (name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return '카메라 권한이 필요해요. 브라우저 설정에서 카메라를 허용해 주세요.';
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return '사용할 수 있는 카메라를 찾지 못했어요.';
+    case 'NotReadableError':
+    case 'AbortError':
+      return '다른 앱이 카메라를 쓰고 있어요. 다른 앱을 닫고 다시 열어 주세요.';
+    default:
+      return `카메라를 열지 못했어요. (${name || String(e)})`;
+  }
 }
 
 export function stopStream(stream: MediaStream | null): void {
@@ -106,7 +134,9 @@ export type RecordingHandle = {
   done: Promise<{ blob: Blob; mimeType: string; durationMs: number }>;
 };
 
-export function startRecording(stream: MediaStream, maxMs = MAX_VIDEO_MS): RecordingHandle {
+/** 카메라 영상 트랙 + (있으면) 마이크 트랙을 합쳐 녹화한다. 미리보기 스트림은 건드리지 않는다. */
+export function startRecording(camera: MediaStream, mic: MediaStream | null, maxMs = MAX_VIDEO_MS): RecordingHandle {
+  const stream = new MediaStream([...camera.getVideoTracks(), ...(mic?.getAudioTracks() ?? [])]);
   const mimeType = pickRecorderMime();
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined);
   const chunks: BlobPart[] = [];
