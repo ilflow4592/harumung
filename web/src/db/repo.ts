@@ -120,8 +120,15 @@ export async function listSessionMedia(sessionId: string): Promise<MediaItem[]> 
   return rows.filter((m) => m.reviewStatus === 'pending').sort((a, b) => a.takenAt.localeCompare(b.takenAt));
 }
 
-/** 세션 검수 저장: keptIds는 kept+queued, 나머지 pending은 deleted(원본 Blob 제거). 세션은 saved. */
-export async function finishSessionReview(sessionId: string, keptIds: string[]): Promise<void> {
+/**
+ * 세션 검수 저장: keptIds는 kept+queued, 나머지 pending은 deleted(원본 Blob 제거). 세션은 saved.
+ * dogIdsById가 있으면 저장 직전에 강아지 배정을 덮어쓴다(검수 화면의 일괄 배정).
+ */
+export async function finishSessionReview(
+  sessionId: string,
+  keptIds: string[],
+  dogIdsById: Record<string, string[]> = {},
+): Promise<void> {
   await db.transaction('rw', db.media, db.shootSessions, async () => {
     const pending = (await db.media.where('sessionId').equals(sessionId).toArray()).filter(
       (m) => m.reviewStatus === 'pending',
@@ -129,7 +136,8 @@ export async function finishSessionReview(sessionId: string, keptIds: string[]):
     const keptSet = new Set(keptIds);
     for (const m of pending) {
       if (keptSet.has(m.id)) {
-        await db.media.update(m.id, { reviewStatus: 'kept', uploadStatus: 'queued' });
+        const dogIds = dogIdsById[m.id];
+        await db.media.update(m.id, dogIds ? { reviewStatus: 'kept', uploadStatus: 'queued', dogIds } : { reviewStatus: 'kept', uploadStatus: 'queued' });
       } else {
         await db.media.update(m.id, { reviewStatus: 'deleted', blob: null, thumbBlob: null });
       }

@@ -115,6 +115,18 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
   position: absolute; left: 4px; bottom: 4px; background: rgba(17, 24, 39, 0.7); color: var(--white);
   font-size: 10px; font-weight: 700; border-radius: 6px; padding: 1px 5px;
 }
+.cell--on { outline: 3px solid var(--mint); outline-offset: -3px; }
+.cell--dim { opacity: 0.4; }
+.cell:disabled { cursor: default; }
+.cell__check {
+  position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; border-radius: 11px;
+  background: var(--mint); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+}
+.cell__names {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px; font-size: 10px; font-weight: 700; color: var(--white);
+  background: linear-gradient(transparent, rgba(17, 24, 39, 0.75)); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cell__names--none { color: var(--pink-mid); }
 .cell__del {
   position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; border-radius: 11px;
   background: var(--pink); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
@@ -214,6 +226,17 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
 .cam__shutter--rec { background: var(--pink); }
 .cam__shutter--rec span { width: 28px; height: 28px; border-radius: 8px; }
 .cam__center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+
+/* 세그먼트(밝은 배경용)·배정 스트립 */
+.seg { display: flex; height: 36px; padding: 3px; border-radius: 18px; background: var(--gray); gap: 2px; }
+.seg button { border: 0; background: transparent; color: var(--text-2); font-size: 13px; font-weight: 700; padding: 0 12px; border-radius: 15px; display: inline-flex; align-items: center; gap: 4px; }
+.seg button.on { background: var(--white); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+.seg__dot { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--pink); color: var(--white); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
+.assign-head { position: sticky; top: 56px; z-index: 4; background: var(--white); border-bottom: 1px solid var(--line); padding: 10px 0; display: flex; flex-direction: column; gap: 10px; }
+.dogstrip { display: flex; gap: 12px; padding: 0 20px; overflow-x: auto; scrollbar-width: none; }
+.dogstrip::-webkit-scrollbar { display: none; }
+.dogstrip__dog { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: transparent; font-size: 12px; padding: 0; flex: 0 0 auto; color: var(--text); }
+.dogstrip__more { width: 52px; height: 52px; border-radius: 26px; border: 2px dashed var(--line); display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--text-2); box-sizing: border-box; margin: 3px; }
 
 /* 바텀 시트 */
 .sheet-backdrop {
