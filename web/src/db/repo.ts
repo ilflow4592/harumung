@@ -4,6 +4,12 @@ import { db, type Dog, type MediaItem, type MediaKind, type Sex } from './db';
 
 const now = () => new Date().toISOString();
 
+/** 기기 로컬 날짜 YYYY-MM-DD. 등원 체크 키로 쓴다. */
+export function localDate(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 // ---------- 강아지 ----------
 
 export async function listActiveDogs(): Promise<Dog[]> {
@@ -35,6 +41,31 @@ export async function createDog(input: {
     );
   });
   return id;
+}
+
+// ---------- 등원 체크 ----------
+
+export async function listAttendedDogIds(date: string): Promise<string[]> {
+  const rows = await db.attendance.where('date').equals(date).toArray();
+  return rows.map((r) => r.dogId);
+}
+
+/** 탭 한 번에 켜고 끈다. 저장 버튼 없이 즉시 반영. */
+export async function toggleAttendance(date: string, dogId: string): Promise<boolean> {
+  const existing = await db.attendance.where('[date+dogId]').equals([date, dogId]).first();
+  if (existing) {
+    await db.attendance.delete(existing.id);
+    return false;
+  }
+  await db.attendance.add({ id: ulid(), date, dogId, checkedAt: now() });
+  return true;
+}
+
+export async function setAttendance(date: string, dogIds: string[]): Promise<void> {
+  await db.transaction('rw', db.attendance, async () => {
+    await db.attendance.where('date').equals(date).delete();
+    await db.attendance.bulkAdd(dogIds.map((dogId) => ({ id: ulid(), date, dogId, checkedAt: now() })));
+  });
 }
 
 // ---------- 세션 ----------

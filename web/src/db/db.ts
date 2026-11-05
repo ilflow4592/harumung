@@ -24,6 +24,14 @@ export interface GuardianContact {
   isPrimary: 0 | 1;
 }
 
+/** 오늘 등원 체크. date는 기기 로컬 날짜 YYYY-MM-DD. */
+export interface Attendance {
+  id: string;
+  date: string;
+  dogId: string;
+  checkedAt: string;
+}
+
 export interface ShootSession {
   id: string;
   startedAt: string;
@@ -56,6 +64,7 @@ class HarumungDB extends Dexie {
   guardianContacts!: EntityTable<GuardianContact, 'id'>;
   shootSessions!: EntityTable<ShootSession, 'id'>;
   media!: EntityTable<MediaItem, 'id'>;
+  attendance!: EntityTable<Attendance, 'id'>;
 
   constructor() {
     super('harumung');
@@ -65,6 +74,9 @@ class HarumungDB extends Dexie {
       shootSessions: 'id, status, startedAt',
       // *dogIds: 다중 항목 인덱스 (강아지별 폴더 조회)
       media: 'id, sessionId, takenAt, reviewStatus, uploadStatus, *dogIds',
+    });
+    this.version(2).stores({
+      attendance: 'id, date, dogId, [date+dogId]',
     });
   }
 }

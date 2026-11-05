@@ -69,6 +69,12 @@ a { color: var(--blue); text-decoration: none; }
 }
 .icon-btn--mint { background: var(--mint-light); color: var(--mint); border-radius: 14px; font-weight: 700; }
 .card { background: var(--white); border-radius: var(--r-card); border: 1px solid var(--line); padding: 14px; }
+.card--on { border-color: var(--mint); background: var(--mint-light); }
+.check {
+  width: 28px; height: 28px; border-radius: 14px; border: 2px solid var(--line); background: var(--white);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex: 0 0 auto;
+}
+.check--on { background: var(--mint); border-color: var(--mint); color: var(--white); }
 .card--row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
 .badge {
   display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px;
@@ -152,6 +158,10 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
 .chip__x { font-size: 11px; opacity: 0.7; }
 .chip:disabled { opacity: 0.6; }
 .cam__clear { border: 0; background: transparent; color: var(--mint); font-weight: 700; font-size: 12px; padding: 0; text-decoration: underline; }
+.cam__more {
+  width: 60px; height: 60px; border-radius: 30px; border: 2px dashed rgba(255, 255, 255, 0.5);
+  display: flex; align-items: center; justify-content: center; font-size: 26px; color: rgba(255, 255, 255, 0.8); box-sizing: border-box; margin: 3px;
+}
 .cam__dog-av { position: relative; display: inline-block; }
 .cam__dog-check {
   position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 11px;

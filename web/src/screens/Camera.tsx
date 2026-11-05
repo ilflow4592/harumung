@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
-import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listSessionMedia, markSessionReviewing } from '../db/repo';
+import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate, markSessionReviewing } from '../db/repo';
 import { cameraErrorMessage, capturePhoto, makeThumbnail, openCamera, openMic, startRecording, stopStream, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
@@ -32,7 +32,16 @@ export function CameraScreen() {
   }, []);
 
   const { sessionId, mode, selectedDogIds, shotCount, setSession, setMode, toggleDog, clearSelected, bumpShotCount } = useCaptureStore();
-  const { data: dogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
+  const { data: allDogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
+  const date = localDate();
+  const { data: attended = [] } = useQuery({ queryKey: ['attendance', date], queryFn: () => listAttendedDogIds(date) });
+  const [showAll, setShowAll] = useState(false);
+  // 등원 체크가 있으면 스트립에 오늘 온 아이만. 선택 중인 아이는 명단에 없어도 유지한다.
+  const dogs = useMemo(() => {
+    if (attended.length === 0 || showAll) return allDogs;
+    const set = new Set(attended);
+    return allDogs.filter((d) => set.has(d.id) || selectedDogIds.includes(d.id));
+  }, [allDogs, attended, showAll, selectedDogIds]);
   const qc = useQueryClient();
   const { data: sessionMedia = [] } = useQuery({
     queryKey: ['session-media', sessionId],
@@ -89,7 +98,7 @@ export function CameraScreen() {
     if (!sessionId) getOrCreateOpenSession().then(setSession);
   }, [sessionId, setSession]);
 
-  const selectedDogs = dogs.filter((d) => selectedDogIds.includes(d.id));
+  const selectedDogs = allDogs.filter((d) => selectedDogIds.includes(d.id));
   // "코코 외 1마리" 식 짧은 이름. 토스트와 아래 사진 줄 제목에 쓴다.
   const nameLabel =
     selectedDogs.length === 0 ? '미지정'
@@ -230,7 +239,7 @@ export function CameraScreen() {
 
       <div className="cam__bottom">
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px', fontSize: 12 }}>
-          <b>오늘 등원 {dogs.length}마리</b>
+          <b>{attended.length > 0 ? `오늘 등원 ${attended.length}마리` : `전체 ${allDogs.length}마리`}</b>
           <span style={{ color: '#D1D5DB' }}>탭해서 선택 · 여러 마리 가능</span>
         </div>
         <div className="cam__strip">
@@ -253,6 +262,12 @@ export function CameraScreen() {
               </button>
             );
           })}
+          {attended.length > 0 && attended.length < allDogs.length ? (
+            <button type="button" className="cam__dog" disabled={recording} onClick={() => setShowAll((v) => !v)}>
+              <span className="cam__more">{showAll ? '−' : '+'}</span>
+              <span>{showAll ? '등원만' : '전체'}</span>
+            </button>
+          ) : null}
         </div>
         <ShotStrip items={stripMedia} label={nameLabel} />
         <div className="cam__controls">

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
+import { AttendanceScreen } from './screens/Attendance';
 import { CameraScreen } from './screens/Camera';
 import { DogFormScreen } from './screens/DogForm';
 import { DogsScreen } from './screens/Dogs';
@@ -15,6 +16,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/folders" replace />} />
       <Route path="/folders" element={<FoldersScreen />} />
       <Route path="/folders/:dogId" element={<FolderReviewScreen />} />
+      <Route path="/attendance" element={<AttendanceScreen />} />
       <Route path="/camera" element={<CameraScreen />} />
       <Route path="/session-review" element={<SessionReviewScreen />} />
       <Route path="/dogs" element={<DogsScreen />} />

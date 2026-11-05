@@ -6,7 +6,7 @@ import { DogSheet } from '../components/DogSheet';
 import { matchesName, SearchBox } from '../components/SearchBox';
 import { Chip, DogAvatar, InstallHint, SexBadge } from '../components/ui';
 import type { Dog } from '../db/db';
-import { listTodayFolders } from '../db/repo';
+import { listAttendedDogIds, listTodayFolders, localDate } from '../db/repo';
 
 function todayLabel(): string {
   const d = new Date();
@@ -22,10 +22,18 @@ export function FoldersScreen() {
     queryKey: ['folders', new Date().toISOString().slice(0, 10)],
     queryFn: () => listTodayFolders(new Date().toISOString()),
   });
+  const date = localDate();
+  const { data: attended = [] } = useQuery({ queryKey: ['attendance', date], queryFn: () => listAttendedDogIds(date) });
+  const attendedSet = useMemo(() => new Set(attended), [attended]);
+  const [showAbsent, setShowAbsent] = useState(false);
   const perDog = data?.perDog ?? [];
   const unassigned = data?.unassigned ?? 0;
   const total = perDog.reduce((n, f) => n + f.count, 0) + unassigned;
   const filtered = useMemo(() => perDog.filter((f) => matchesName(f.dog.name, query)), [perDog, query]);
+  // 등원 체크가 있으면: 등원했거나 사진이 있는 아이만 본 목록, 나머지는 접힌 "오늘 안 온 아이".
+  const hasAttendance = attended.length > 0;
+  const present = hasAttendance ? filtered.filter((f) => attendedSet.has(f.dog.id) || f.count > 0) : filtered;
+  const absent = hasAttendance ? filtered.filter((f) => !attendedSet.has(f.dog.id) && f.count === 0) : [];
   const pickedCount = picked ? perDog.find((f) => f.dog.id === picked.id)?.count : undefined;
 
   return (
@@ -48,6 +56,13 @@ export function FoldersScreen() {
 
       <main className="body" style={{ paddingBottom: 100 }}>
         <InstallHint />
+        <Link to="/attendance" className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }}>
+          <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span className="title">오늘 등원 {hasAttendance ? `${attended.length}마리` : '체크'}</span>
+            <span className="sub">{hasAttendance ? '카메라와 폴더에 오늘 온 아이만 보여요' : '체크하면 카메라에 오늘 온 아이만 떠요'}</span>
+          </span>
+          <Chip label={hasAttendance ? '수정' : '체크하기'} tone="mint" />
+        </Link>
         {unassigned > 0 && !query ? (
           <div className="card" style={{ borderColor: 'var(--pink-mid)', borderWidth: 1.5 }}>
             <div className="title">미지정 사진 {unassigned}장</div>
@@ -66,8 +81,13 @@ export function FoldersScreen() {
             <div className="sub">이름을 다시 확인해 주세요</div>
           </div>
         ) : null}
-        {filtered.map((f) => (
-          <button key={f.dog.id} type="button" className="card card--row" style={{ textAlign: 'left', width: '100%' }} onClick={() => setPicked(f.dog)}>
+        {absent.length > 0 ? (
+          <button type="button" className="btn btn--small btn--ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowAbsent((v) => !v)}>
+            {showAbsent ? '안 온 아이 접기' : `오늘 안 온 아이 ${absent.length}마리 보기`}
+          </button>
+        ) : null}
+        {(showAbsent ? [...present, ...absent] : present).map((f) => (
+          <button key={f.dog.id} type="button" className="card card--row" style={{ textAlign: 'left', width: '100%', opacity: hasAttendance && !attendedSet.has(f.dog.id) && f.count === 0 ? 0.55 : 1 }} onClick={() => setPicked(f.dog)}>
             <DogAvatar name={f.dog.name} sex={f.dog.sex} thumb={f.dog.thumbBlob} />
             <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
