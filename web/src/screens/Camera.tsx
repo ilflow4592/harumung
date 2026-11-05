@@ -31,7 +31,7 @@ export function CameraScreen() {
     savedTimer.current = window.setTimeout(() => setSaved(null), 1200);
   }, []);
 
-  const { sessionId, mode, selectedDogIds, shotCount, setSession, setMode, selectDog, toggleMultiDog, bumpShotCount } = useCaptureStore();
+  const { sessionId, mode, selectedDogIds, shotCount, setSession, setMode, toggleDog, clearSelected, bumpShotCount } = useCaptureStore();
   const { data: dogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
   const qc = useQueryClient();
   const { data: sessionMedia = [] } = useQuery({
@@ -42,10 +42,10 @@ export function CameraScreen() {
   // 촬영·가져오기 뒤 호출. 아래 사진 줄을 갱신한다.
   const refreshStrip = useCallback(() => qc.invalidateQueries({ queryKey: ['session-media', sessionId] }), [qc, sessionId]);
 
-  // 지금 선택된 강아지(단일)의 이번 세션 사진. 미지정 모드면 미지정 사진. 다중 선택이면 첫 강아지 기준.
+  // 지금 선택된 강아지(들)의 이번 세션 사진. 여러 마리면 그 조합이 모두 들어간 사진. 미지정 모드면 미지정 사진.
   const stripMedia = useMemo(() => {
-    const key = selectedDogIds[0] ?? null;
-    return sessionMedia.filter((m) => (key ? m.dogIds.includes(key) : m.dogIds.length === 0));
+    if (selectedDogIds.length === 0) return sessionMedia.filter((m) => m.dogIds.length === 0);
+    return sessionMedia.filter((m) => selectedDogIds.every((id) => m.dogIds.includes(id)));
   }, [sessionMedia, selectedDogIds]);
 
   // 카메라 스트림은 화면 진입 시 한 번만 연다. 사진/영상 전환으로는 다시 열지 않는다(iOS에서 재오픈이 실패하던 원인).
@@ -202,32 +202,49 @@ export function CameraScreen() {
       </div>
 
       <div className="cam__name">
-        <b>{nameLabel}</b>
-        <span className="sub">{selectedDogs.length ? `지금 찍는 ${mode === 'photo' ? '사진' : '영상'}은 ${nameLabel} 폴더로 저장돼요` : '폴더 검수에서 나중에 정해요'}</span>
+        {selectedDogs.length === 0 ? (
+          <>
+            <b>미지정</b>
+            <span className="sub">아래에서 강아지를 탭하면 그 폴더로 저장돼요</span>
+          </>
+        ) : (
+          <>
+            <div className="cam__chips">
+              {selectedDogs.map((d) => (
+                <button key={d.id} type="button" className={`chip chip--${d.sex}`} disabled={recording} onClick={() => toggleDog(d.id)} aria-label={`${d.name} 해제`}>
+                  {d.name} <span className="chip__x">✕</span>
+                </button>
+              ))}
+            </div>
+            <span className="sub">
+              {selectedDogs.length > 1 ? `${selectedDogs.length}마리 합사 사진으로 저장돼요 · ` : `${selectedDogs[0].name} 폴더로 저장돼요 · `}
+              <button type="button" className="cam__clear" disabled={recording} onClick={clearSelected}>전체 해제</button>
+            </span>
+          </>
+        )}
       </div>
 
       <div className="cam__bottom">
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px', fontSize: 12 }}>
           <b>오늘 등원 {dogs.length}마리</b>
-          <span style={{ color: '#D1D5DB' }}>길게 누르면 여러 마리 선택</span>
+          <span style={{ color: '#D1D5DB' }}>탭해서 선택 · 여러 마리 가능</span>
         </div>
         <div className="cam__strip">
           {dogs.map((d) => {
             const selected = selectedDogIds.includes(d.id);
-            let timer: number | undefined;
             return (
               <button
                 key={d.id}
                 type="button"
-                className="cam__dog"
+                className={`cam__dog ${selected ? 'cam__dog--on' : ''}`}
+                aria-pressed={selected}
                 disabled={recording}
-                onClick={() => selectDog(d.id)}
-                onContextMenu={(e) => { e.preventDefault(); toggleMultiDog(d.id); }}
-                onTouchStart={() => { timer = window.setTimeout(() => toggleMultiDog(d.id), 500); }}
-                onTouchEnd={() => window.clearTimeout(timer)}
-                onTouchMove={() => window.clearTimeout(timer)}
+                onClick={() => toggleDog(d.id)}
               >
-                <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} size={60} selected={selected} />
+                <span className="cam__dog-av">
+                  <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} size={60} selected={selected} />
+                  {selected ? <span className="cam__dog-check">✓</span> : null}
+                </span>
                 <span style={{ fontWeight: selected ? 700 : 500 }}>{d.name}</span>
               </button>
             );
