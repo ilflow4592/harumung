@@ -31,9 +31,14 @@ export function hasImageCapture(): boolean {
  * 안드로이드 크롬: ImageCapture.takePhoto → 센서 풀 해상도 JPEG. 실패하거나 없으면 미리보기 캔버스 캡처.
  * 반환 source는 어떤 경로로 찍혔는지 (화질 테스트용).
  */
-export async function capturePhotoBest(video: HTMLVideoElement, stream: MediaStream | null): Promise<{ blob: Blob; source: 'sensor' | 'preview' }> {
+export async function capturePhotoBest(
+  video: HTMLVideoElement,
+  stream: MediaStream | null,
+  digitalZoom = 1,
+): Promise<{ blob: Blob; source: 'sensor' | 'preview' }> {
   const track = stream?.getVideoTracks()[0];
-  if (track && hasImageCapture()) {
+  // 디지털 줌 중엔 센서 촬영이 줌을 반영하지 못하므로 캔버스 크롭으로 간다.
+  if (track && digitalZoom <= 1 && hasImageCapture()) {
     try {
       const Ctor = (window as unknown as { ImageCapture: ImageCaptureCtor }).ImageCapture;
       const blob = await new Ctor(track).takePhoto();
@@ -42,7 +47,7 @@ export async function capturePhotoBest(video: HTMLVideoElement, stream: MediaStr
       /* 일부 기기는 takePhoto가 실패한다. 캔버스로 대체. */
     }
   }
-  return { blob: await capturePhoto(video), source: 'preview' };
+  return { blob: await capturePhoto(video, digitalZoom), source: 'preview' };
 }
 
 /** 마이크 스트림. 거부되거나 없으면 null — 영상은 무음으로 녹화한다. */
@@ -76,15 +81,47 @@ export function stopStream(stream: MediaStream | null): void {
   stream?.getTracks().forEach((t) => t.stop());
 }
 
-/** 현재 프레임을 JPEG Blob으로. 미리보기 <video>의 실제 해상도를 그대로 쓴다. */
-export async function capturePhoto(video: HTMLVideoElement, quality = 0.9): Promise<Blob> {
+/**
+ * 현재 프레임을 JPEG Blob으로. 미리보기 <video>의 실제 해상도를 그대로 쓴다.
+ * digitalZoom > 1이면 가운데를 잘라 확대한다(디지털 줌). 4K 원본이라 2배까지는 1080p급이 남는다.
+ */
+export async function capturePhoto(video: HTMLVideoElement, digitalZoom = 1, quality = 0.9): Promise<Blob> {
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  canvas.width = vw;
+  canvas.height = vh;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('캔버스를 만들 수 없습니다.');
-  ctx.drawImage(video, 0, 0);
+  const z = Math.max(1, digitalZoom);
+  const sw = vw / z;
+  const sh = vh / z;
+  ctx.drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, vw, vh);
   return canvasToBlob(canvas, 'image/jpeg', quality);
+}
+
+// ---- 줌 ----
+// 기기(렌즈) 줌은 zoom 제약을 지원하는 브라우저에서만. 없으면 디지털 줌(CSS 확대 + 캔버스 크롭).
+
+type ZoomCapability = { min: number; max: number; step?: number };
+
+export function nativeZoomRange(stream: MediaStream | null): ZoomCapability | null {
+  const track = stream?.getVideoTracks()[0];
+  if (!track) return null;
+  const caps = track.getCapabilities?.() as (MediaTrackCapabilities & { zoom?: ZoomCapability }) | undefined;
+  const z = caps?.zoom;
+  return z && typeof z.min === 'number' && typeof z.max === 'number' && z.max > z.min ? z : null;
+}
+
+export async function applyNativeZoom(stream: MediaStream | null, zoom: number): Promise<boolean> {
+  const track = stream?.getVideoTracks()[0];
+  if (!track) return false;
+  try {
+    await track.applyConstraints({ advanced: [{ zoom } as MediaTrackConstraintSet] });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** 긴 변 maxSide px JPEG 썸네일. */

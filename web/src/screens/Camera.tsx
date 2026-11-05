@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate, markSessionReviewing } from '../db/repo';
-import { MAX_VIDEO_MS, cameraErrorMessage, capturePhotoBest, makeThumbnail, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { MAX_VIDEO_MS, applyNativeZoom, cameraErrorMessage, capturePhotoBest, makeThumbnail, nativeZoomRange, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
 
@@ -31,6 +31,53 @@ export function CameraScreen() {
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [recMs, setRecMs] = useState(0); // 녹화 경과 시간
+  // 줌. 기기 줌이 되면 렌즈 줌, 아니면 디지털 줌(미리보기 확대 + 캔버스 크롭).
+  const [zoom, setZoom] = useState(1);
+  const zoomRange = useRef<{ min: number; max: number } | null>(null);
+  const [nativeZoom, setNativeZoom] = useState(false);
+  const DIGITAL_MAX = 3;
+  const zoomMax = nativeZoom ? Math.min(zoomRange.current?.max ?? DIGITAL_MAX, 5) : DIGITAL_MAX;
+  const zoomMin = nativeZoom ? (zoomRange.current?.min ?? 1) : 1;
+  const pinch = useRef<{ startDist: number; startZoom: number } | null>(null);
+  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const zoomApplyTimer = useRef<number | undefined>(undefined);
+
+  const changeZoom = useCallback((next: number) => {
+    const z = Math.round(Math.min(zoomMax, Math.max(zoomMin, next)) * 10) / 10;
+    setZoom(z);
+    if (nativeZoom) {
+      // 제약 적용은 비싸서 60ms로 묶는다
+      window.clearTimeout(zoomApplyTimer.current);
+      zoomApplyTimer.current = window.setTimeout(() => { void applyNativeZoom(streamRef.current, z); }, 60);
+    }
+  }, [nativeZoom, zoomMax, zoomMin]);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { startDist: Math.hypot(a.x - b.x, a.y - b.y), startZoom: zoom };
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2 && pinch.current) {
+      const [a, b] = [...pointers.current.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      changeZoom(pinch.current.startZoom * (dist / pinch.current.startDist));
+    }
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+  };
+  /** 줌 칩 탭: 1× → 2× → 3× → 1× */
+  const cycleZoom = () => {
+    const steps = [1, 2, 3].filter((v) => v <= zoomMax);
+    const next = steps.find((v) => v > zoom + 0.05) ?? steps[0];
+    changeZoom(next);
+  };
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState(0); // 바뀔 때마다 흰 플래시 1회
   const [saved, setSaved] = useState<string | null>(null); // "저장됨" 토스트
@@ -82,6 +129,10 @@ export function CameraScreen() {
           await videoRef.current.play();
         }
         setResolution(streamResolution(s));
+        const range = nativeZoomRange(s);
+        zoomRange.current = range;
+        setNativeZoom(!!range);
+        setZoom(range ? Math.max(1, range.min) : 1);
         setReady(true);
         setError(null);
       } catch (e) {
@@ -125,7 +176,7 @@ export function CameraScreen() {
     setFlash((n) => n + 1);
     shutterFeedback();
     try {
-      const { blob, source } = await capturePhotoBest(videoRef.current, streamRef.current);
+      const { blob, source } = await capturePhotoBest(videoRef.current, streamRef.current, nativeZoom ? 1 : zoom);
       setLastSource(source);
       const thumbBlob = await makeThumbnail(blob);
       await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob, thumbBlob, mimeType: blob.type || 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
@@ -135,7 +186,7 @@ export function CameraScreen() {
     } finally {
       setBusy(false);
     }
-  }, [sessionId, busy, hq, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length]);
+  }, [sessionId, busy, hq, zoom, nativeZoom, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length]);
 
   /** 고화질 모드 결과(기본 카메라 앱 원본). 앨범 가져오기와 같은 경로로 저장. */
   const onHqPicked = useCallback(
@@ -242,7 +293,15 @@ export function CameraScreen() {
 
   return (
     <div className="cam">
-      <video ref={videoRef} className="preview" playsInline muted autoPlay />
+      <video ref={videoRef} className="preview" playsInline muted autoPlay style={nativeZoom ? undefined : { transform: `scale(${zoom})` }} />
+      <div
+        className="cam__gesture"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onPointerLeave={onPointerUp}
+      />
       {flash > 0 ? <div key={flash} className="cam__flash" /> : null}
       {error ? <div className="cam__center">{error}</div> : null}
       {!ready && !error ? <div className="cam__center">카메라 여는 중…</div> : null}
@@ -281,6 +340,9 @@ export function CameraScreen() {
 
       {/* 하단: 강아지 줄 → 방금 찍은 사진 줄 → 셔터. */}
       <div className="cam__bottom">
+        <button type="button" className="cam__zoom" onClick={cycleZoom} aria-label="줌 바꾸기">
+          {zoom.toFixed(1).replace(/\.0$/, '')}×
+        </button>
         <div className="cam__strip">
           {dogs.map((d) => {
             const selected = selectedDogIds.includes(d.id);
