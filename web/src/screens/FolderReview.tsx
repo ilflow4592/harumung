@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
-import { addDogToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKept, listUnassignedKept, localDate, removeDogFromMedia } from '../db/repo';
+import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKept, listUnassignedKept, localDate, removeDogFromMedia } from '../db/repo';
 
 const UNASSIGNED = 'unassigned';
 
@@ -47,14 +47,15 @@ export function FolderReviewScreen() {
   };
   const say = (text: string) => { setToast(text); window.setTimeout(() => setToast(null), 1500); };
 
-  const assignTo = async (dog: Dog) => {
+  const assignTo = async (picked: Dog[]) => {
     const ids = [...selected];
     setBusy(true);
     try {
-      await addDogToMedia(ids, dog.id);
+      await addDogsToMedia(ids, picked.map((d) => d.id));
       await refresh();
       setSheet(false);
-      say(`${ids.length}장을 ${dog.name}에게 배정했어요`);
+      const who = picked.length === 1 ? picked[0].name : `${picked[0].name} 외 ${picked.length - 1}마리`;
+      say(`${ids.length}장을 ${who}에게 배정했어요`);
     } finally { setBusy(false); }
   };
 
@@ -142,14 +143,17 @@ function Cell({ m, dogs, selected, onToggle }: { m: MediaItem; dogs: Dog[]; sele
   );
 }
 
-/** 강아지 고르기 시트. 등원 아이 먼저, 그 아래 나머지. */
+/** 강아지 고르기 시트. 여러 마리 체크한 뒤 배정. 등원 아이 먼저, 그 아래 나머지. */
 function AssignSheet({ dogs, folderDog, count, busy, onPick, onRemove, onClose }: {
   dogs: Dog[]; folderDog: Dog | null; count: number; busy: boolean;
-  onPick: (dog: Dog) => void; onRemove: () => void; onClose: () => void;
+  onPick: (dogs: Dog[]) => void; onRemove: () => void; onClose: () => void;
 }) {
   const date = localDate();
   const { data: attended = [] } = useQuery({ queryKey: ['attendance', date], queryFn: () => listAttendedDogIds(date) });
   const [closing, setClosing] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const togglePick = (id: string) =>
+    setPicked((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const ordered = useMemo(() => {
     const set = new Set(attended);
     const candidates = dogs.filter((d) => d.id !== folderDog?.id);
@@ -162,20 +166,30 @@ function AssignSheet({ dogs, folderDog, count, busy, onPick, onRemove, onClose }
     <div className={`sheet-backdrop ${closing ? 'sheet-backdrop--out' : ''}`} onClick={close}>
       <div className={`sheet ${closing ? 'sheet--out' : ''}`} role="dialog" aria-label="강아지 배정" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '75vh', overflowY: 'auto' }}>
         <div className="title">{count}장을 누구에게?</div>
+        <span className="sub">여러 마리 체크하면 합사 사진으로 모두에게 들어가요</span>
         {folderDog ? (
           <button type="button" className="btn btn--ghost" disabled={busy} onClick={onRemove} style={{ color: 'var(--pink)' }}>
             {folderDog.name} 폴더에서 빼기 (미지정으로)
           </button>
         ) : null}
-        {ordered.map((d) => (
-          <button key={d.id} type="button" className="card card--row" style={{ textAlign: 'left', width: '100%' }} disabled={busy} onClick={() => onPick(d)}>
-            <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} size={40} />
-            <span className="title" style={{ flex: 1 }}>{d.name}</span>
-            {attendedSet.has(d.id) ? <span className="badge badge--mint">등원</span> : null}
-            <SexBadge sex={d.sex} />
+        {ordered.map((d) => {
+          const on = picked.has(d.id);
+          return (
+            <button key={d.id} type="button" className={`card card--row ${on ? 'card--on' : ''}`} style={{ textAlign: 'left', width: '100%' }} aria-pressed={on} disabled={busy} onClick={() => togglePick(d.id)}>
+              <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} size={40} />
+              <span className="title" style={{ flex: 1 }}>{d.name}</span>
+              {attendedSet.has(d.id) ? <span className="badge badge--mint">등원</span> : null}
+              <SexBadge sex={d.sex} />
+              <span className={`check ${on ? 'check--on' : ''}`}>{on ? '✓' : ''}</span>
+            </button>
+          );
+        })}
+        <div style={{ position: 'sticky', bottom: 0, background: 'var(--white)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button type="button" className="btn" disabled={busy || picked.size === 0} onClick={() => onPick(ordered.filter((d) => picked.has(d.id)))}>
+            {picked.size === 0 ? '강아지를 고르세요' : `${picked.size}마리에게 배정`}
           </button>
-        ))}
-        <button type="button" className="btn btn--ghost" onClick={close}>취소</button>
+          <button type="button" className="btn btn--ghost" onClick={close}>취소</button>
+        </div>
       </div>
     </div>
   );

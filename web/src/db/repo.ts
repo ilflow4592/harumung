@@ -172,12 +172,14 @@ export async function listUnassignedKept(): Promise<MediaItem[]> {
   return rows.filter((m) => m.dogIds.length === 0).sort((a, b) => b.takenAt.localeCompare(a.takenAt));
 }
 
-/** 폴더 검수: 선택 사진들에 강아지를 붙인다 (이미 있으면 그대로). */
-export async function addDogToMedia(ids: string[], dogId: string): Promise<void> {
+/** 폴더 검수: 선택 사진들에 강아지들을 붙인다 (이미 있으면 그대로). 합사 사진은 여러 마리. */
+export async function addDogsToMedia(ids: string[], dogIds: string[]): Promise<void> {
   await db.transaction('rw', db.media, async () => {
     for (const id of ids) {
       const m = await db.media.get(id);
-      if (m && !m.dogIds.includes(dogId)) await db.media.update(id, { dogIds: [...m.dogIds, dogId] });
+      if (!m) continue;
+      const merged = [...m.dogIds, ...dogIds.filter((d) => !m.dogIds.includes(d))];
+      if (merged.length !== m.dogIds.length) await db.media.update(id, { dogIds: merged });
     }
   });
 }
