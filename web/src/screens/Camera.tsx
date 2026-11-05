@@ -90,7 +90,11 @@ export function CameraScreen() {
   }, [sessionId, setSession]);
 
   const selectedDogs = dogs.filter((d) => selectedDogIds.includes(d.id));
-  const nameLabel = selectedDogs.length === 0 ? '미지정' : selectedDogs.map((d) => d.name).join(' · ');
+  // "코코 외 1마리" 식 짧은 이름. 토스트와 아래 사진 줄 제목에 쓴다.
+  const nameLabel =
+    selectedDogs.length === 0 ? '미지정'
+    : selectedDogs.length === 1 ? selectedDogs[0].name
+    : `${selectedDogs[0].name} 외 ${selectedDogs.length - 1}마리`;
 
   const takePhoto = useCallback(async () => {
     if (!sessionId || busy || !videoRef.current) return;
@@ -250,7 +254,7 @@ export function CameraScreen() {
             );
           })}
         </div>
-        <ShotStrip items={stripMedia} label={selectedDogs[0]?.name ?? '미지정'} />
+        <ShotStrip items={stripMedia} label={nameLabel} />
         <div className="cam__controls">
           <button type="button" className="cam__side" onClick={close}>폴더</button>
           <button
