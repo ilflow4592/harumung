@@ -5,9 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate, markSessionReviewing } from '../db/repo';
-import { cameraErrorMessage, capturePhoto, makeThumbnail, openCamera, openMic, startRecording, stopStream, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { cameraErrorMessage, capturePhotoBest, hasImageCapture, makeThumbnail, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
+
+const HQ_KEY = 'harumung.hq';
+/** 고화질 모드: 기본 카메라 앱으로 찍어 원본을 가져온다. ImageCapture가 없는 기기(iOS)에서만 의미가 있다. */
+const hqAvailable = !hasImageCapture();
 
 export function CameraScreen() {
   const navigate = useNavigate();
@@ -17,6 +21,11 @@ export function CameraScreen() {
   const [noMic, setNoMic] = useState(false);
   const recRef = useRef<RecordingHandle | null>(null);
   const albumInput = useRef<HTMLInputElement>(null);
+  const hqInput = useRef<HTMLInputElement>(null);
+  const [hq, setHq] = useState<boolean>(() => { try { return localStorage.getItem(HQ_KEY) === '1'; } catch { return false; } });
+  const [resolution, setResolution] = useState<string | null>(null);
+  const [lastSource, setLastSource] = useState<'sensor' | 'preview' | 'native' | null>(null);
+  const toggleHq = () => setHq((v) => { const n = !v; try { localStorage.setItem(HQ_KEY, n ? '1' : '0'); } catch { /* 저장 못 해도 동작엔 지장 없음 */ } return n; });
   const [importing, setImporting] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +80,7 @@ export function CameraScreen() {
           videoRef.current.srcObject = s;
           await videoRef.current.play();
         }
+        setResolution(streamResolution(s));
         setReady(true);
         setError(null);
       } catch (e) {
@@ -107,21 +117,45 @@ export function CameraScreen() {
 
   const takePhoto = useCallback(async () => {
     if (!sessionId || busy || !videoRef.current) return;
+    // 고화질 모드: 기본 카메라 앱을 연다. 결과는 onHqPicked로 들어온다.
+    if (hq && hqAvailable) { hqInput.current?.click(); return; }
     setBusy(true);
     // 셔터 효과는 저장 전에 즉시. 사용자가 "찍혔다"를 바로 느끼게 한다.
     setFlash((n) => n + 1);
     shutterFeedback();
     try {
-      const blob = await capturePhoto(videoRef.current);
+      const { blob, source } = await capturePhotoBest(videoRef.current, streamRef.current);
+      setLastSource(source);
       const thumbBlob = await makeThumbnail(blob);
-      await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob, thumbBlob, mimeType: 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
+      await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob, thumbBlob, mimeType: blob.type || 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
       bumpShotCount();
       refreshStrip();
       showSaved(`${nameLabel} · ${stripMedia.length + 1}장째 저장됨`);
     } finally {
       setBusy(false);
     }
-  }, [sessionId, busy, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length]);
+  }, [sessionId, busy, hq, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length]);
+
+  /** 고화질 모드 결과(기본 카메라 앱 원본). 앨범 가져오기와 같은 경로로 저장. */
+  const onHqPicked = useCallback(
+    async (files: FileList | null) => {
+      const file = files?.[0];
+      if (!sessionId || !file) return;
+      setBusy(true);
+      try {
+        const thumbBlob = await makeThumbnail(file);
+        await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob: file, thumbBlob, mimeType: file.type || 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
+        setLastSource('native');
+        bumpShotCount();
+        refreshStrip();
+        showSaved(`${nameLabel} · ${stripMedia.length + 1}장째 저장됨 (원본)`);
+      } finally {
+        setBusy(false);
+        if (hqInput.current) hqInput.current.value = '';
+      }
+    },
+    [sessionId, selectedDogIds, bumpShotCount, refreshStrip, showSaved, nameLabel, stripMedia.length],
+  );
 
   const toggleRecording = useCallback(async () => {
     if (!sessionId || !streamRef.current) return;
@@ -208,6 +242,11 @@ export function CameraScreen() {
       <div className="cam__top">
         <button type="button" className="cam__round" aria-label="촬영 마치고 검수" onClick={close}>✕</button>
         <div key={shotCount} className={`cam__pill ${shotCount > 0 ? 'cam__pill--bump' : ''}`}>오늘 {shotCount}장</div>
+        {hqAvailable && mode === 'photo' ? (
+          <button type="button" className={`cam__round cam__hq ${hq ? 'cam__hq--on' : ''}`} aria-pressed={hq} disabled={recording} onClick={toggleHq} title="고화질: 기본 카메라로 찍기">
+            HQ
+          </button>
+        ) : null}
         <div className="cam__seg" role="tablist" aria-label="촬영 모드">
           <button type="button" role="tab" aria-selected={mode === 'photo'} className={mode === 'photo' ? 'on' : ''} disabled={recording} onClick={() => setMode('photo')}>사진</button>
           <button type="button" role="tab" aria-selected={mode === 'video'} className={mode === 'video' ? 'on' : ''} disabled={recording} onClick={() => setMode('video')}>영상</button>
@@ -240,7 +279,10 @@ export function CameraScreen() {
       <div className="cam__bottom">
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px', fontSize: 12 }}>
           <b>{attended.length > 0 ? `오늘 등원 ${attended.length}마리` : `전체 ${allDogs.length}마리`}</b>
-          <span style={{ color: '#D1D5DB' }}>탭해서 선택 · 여러 마리 가능</span>
+          <span style={{ color: '#D1D5DB' }}>
+            {hq && hqAvailable ? '기본 카메라 원본' : resolution ?? ''}
+            {lastSource === 'sensor' ? ' · 센서' : lastSource === 'preview' ? ' · 미리보기' : lastSource === 'native' ? ' · 원본' : ''}
+          </span>
         </div>
         <div className="cam__strip">
           {dogs.map((d) => {
@@ -290,6 +332,14 @@ export function CameraScreen() {
           >
             앨범
           </button>
+          <input
+            ref={hqInput}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: 'none' }}
+            onChange={(e) => onHqPicked(e.target.files)}
+          />
           <input
             ref={albumInput}
             type="file"
