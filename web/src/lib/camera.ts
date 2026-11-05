@@ -70,6 +70,25 @@ export async function videoThumbnail(video: Blob): Promise<Blob | null> {
   }
 }
 
+/** 앨범에서 가져온 영상의 길이(ms). 못 읽으면 null. */
+export async function videoDurationMs(video: Blob): Promise<number | null> {
+  const url = URL.createObjectURL(video);
+  try {
+    const el = document.createElement('video');
+    el.preload = 'metadata';
+    el.src = url;
+    await new Promise<void>((resolve, reject) => {
+      el.onloadedmetadata = () => resolve();
+      el.onerror = () => reject(new Error('영상을 읽지 못했습니다.'));
+    });
+    return Number.isFinite(el.duration) ? Math.round(el.duration * 1000) : null;
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /** 브라우저가 지원하는 녹화 형식. iOS 사파리는 mp4, 안드로이드 크롬은 webm. 서버에서 720p mp4로 통일한다. */
 export function pickRecorderMime(): string {
   const candidates = [

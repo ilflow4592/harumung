@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { DogAvatar } from '../components/ui';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, markSessionReviewing } from '../db/repo';
-import { capturePhoto, makeThumbnail, openCamera, startRecording, stopStream, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { capturePhoto, makeThumbnail, openCamera, startRecording, stopStream, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { useCaptureStore } from '../store/capture';
 
 export function CameraScreen() {
@@ -12,6 +12,8 @@ export function CameraScreen() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<RecordingHandle | null>(null);
+  const albumInput = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
@@ -88,6 +90,36 @@ export function CameraScreen() {
       .finally(() => { setRecording(false); setBusy(false); recRef.current = null; });
   }, [recording, sessionId, selectedDogIds, bumpShotCount]);
 
+  /** 앨범에서 가져온 사진·영상을 현재 지정 강아지로 세션에 넣는다. 여러 장 가능. */
+  const importFromAlbum = useCallback(
+    async (files: FileList | null) => {
+      if (!sessionId || !files || files.length === 0) return;
+      const dogIds = [...selectedDogIds];
+      setBusy(true);
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          setImporting(`${i + 1}/${files.length} 가져오는 중`);
+          if (file.type.startsWith('video/')) {
+            const [thumbBlob, durationMs] = await Promise.all([videoThumbnail(file), videoDurationMs(file)]);
+            await insertCapturedMedia({ sessionId, kind: 'VIDEO', blob: file, thumbBlob, mimeType: file.type, durationMs, dogIds });
+          } else if (file.type.startsWith('image/')) {
+            const thumbBlob = await makeThumbnail(file);
+            await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob: file, thumbBlob, mimeType: file.type || 'image/jpeg', durationMs: null, dogIds });
+          } else {
+            continue;
+          }
+          bumpShotCount();
+        }
+      } finally {
+        setImporting(null);
+        setBusy(false);
+        if (albumInput.current) albumInput.current.value = '';
+      }
+    },
+    [sessionId, selectedDogIds, bumpShotCount],
+  );
+
   const close = useCallback(async () => {
     recRef.current?.stop();
     if (sessionId && shotCount > 0) {
@@ -155,9 +187,26 @@ export function CameraScreen() {
           >
             <span />
           </button>
-          <span style={{ width: 52 }} />
+          <button
+            type="button"
+            className="cam__side cam__side--album"
+            aria-label="앨범에서 가져오기"
+            disabled={recording || busy}
+            onClick={() => albumInput.current?.click()}
+          >
+            앨범
+          </button>
+          <input
+            ref={albumInput}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => importFromAlbum(e.target.files)}
+          />
         </div>
       </div>
+      {importing ? <div className="cam__toast">{importing}</div> : null}
     </div>
   );
 }

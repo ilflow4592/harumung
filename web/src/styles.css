@@ -147,6 +147,13 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
 .cam__dog { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--white); font-size: 12px; padding: 0; flex: 0 0 auto; }
 .cam__controls { display: flex; align-items: center; justify-content: space-between; padding: 0 36px; }
 .cam__side { width: 52px; height: 52px; border-radius: 16px; border: 0; background: var(--mint-light); color: var(--mint); font-weight: 700; }
+.cam__side--album { background: rgba(255, 255, 255, 0.18); color: var(--white); }
+.cam__side:disabled { opacity: 0.5; }
+.cam__toast {
+  position: absolute; left: 50%; bottom: calc(var(--safe-bottom) + 200px); transform: translateX(-50%);
+  background: rgba(17, 24, 39, 0.8); color: var(--white); font-size: 13px; font-weight: 700;
+  padding: 8px 14px; border-radius: 999px; white-space: nowrap;
+}
 .cam__shutter {
   width: 76px; height: 76px; border-radius: 38px; border: 5px solid var(--white); background: var(--mint);
   display: flex; align-items: center; justify-content: center; padding: 0;
