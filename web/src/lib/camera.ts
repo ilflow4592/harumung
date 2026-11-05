@@ -11,6 +11,14 @@ export async function openCamera(): Promise<MediaStream> {
   });
 }
 
+/** 모드별 해상도. 사진은 4K(캔버스 캡처 화질), 영상은 1080p(파일 크기·발열). 안 되면 조용히 유지. */
+export async function applyModeResolution(stream: MediaStream | null, mode: 'photo' | 'video'): Promise<void> {
+  const track = stream?.getVideoTracks()[0];
+  if (!track) return;
+  const target = mode === 'video' ? { width: { ideal: 1920 }, height: { ideal: 1080 } } : { width: { ideal: 3840 }, height: { ideal: 2160 } };
+  try { await track.applyConstraints(target); } catch { /* 기기가 거부하면 현재 해상도 유지 */ }
+}
+
 /** 지금 스트림이 실제로 주는 해상도. 화질 확인용 표시. */
 export function streamResolution(stream: MediaStream | null): string | null {
   const t = stream?.getVideoTracks()[0];
@@ -212,7 +220,8 @@ export type RecordingHandle = {
 export function startRecording(camera: MediaStream, mic: MediaStream | null, maxMs = MAX_VIDEO_MS): RecordingHandle {
   const stream = new MediaStream([...camera.getVideoTracks(), ...(mic?.getAudioTracks() ?? [])]);
   const mimeType = pickRecorderMime();
-  const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined);
+  // 1080p 기준 2.5Mbps. 30초면 9MB 안팎. 카톡 전송 속도와 화질의 타협점.
+  const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 2_500_000 } : undefined);
   const chunks: BlobPart[] = [];
   const startedAt = Date.now();
   recorder.ondataavailable = (e) => {

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
@@ -61,13 +61,27 @@ function SendRow({ dog, date, sent }: { dog: Dog; date: string; sent: boolean })
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [doneBatches, setDoneBatches] = useState<Set<number>>(new Set());
+  const [compress, setCompress] = useState(true);
+  const [files, setFiles] = useState<File[]>([]);
+  const [preparing, setPreparing] = useState<string | null>(null);
 
-  const files = useMemo(() => toShareFiles(items, dog.name, date), [items, dog.name, date]);
+  // 사진 축소는 미리 해 둔다. 보내기 탭에서 바로 공유 창이 떠야 하므로(공유는 탭 직후에만 허용).
+  useEffect(() => {
+    let cancelled = false;
+    if (items.length === 0) { setFiles([]); return; }
+    setPreparing('준비 중…');
+    toShareFiles(items, dog.name, date, compress, (d, t) => { if (!cancelled) setPreparing(`${compress ? '압축' : '준비'} 중 ${d}/${t}`); })
+      .then((f) => { if (!cancelled) { setFiles(f); setPreparing(null); } });
+    return () => { cancelled = true; };
+  }, [items, dog.name, date, compress]);
+
   const batches = useMemo(() => splitBatches(files), [files]);
+  const originalBytes = items.reduce((n, m) => n + (m.blob?.size ?? 0), 0);
   const photos = items.filter((m) => m.kind === 'PHOTO').length;
   const videos = items.length - photos;
   const bytes = files.reduce((n, f) => n + f.size, 0);
   const supported = files.length > 0 && canShareFiles(batches[0] ?? []);
+  const ready = files.length > 0 && !preparing;
 
   const finish = async () => {
     await markSent(date, dog.id, items.length);
@@ -112,23 +126,30 @@ function SendRow({ dog, date, sent }: { dog: Dog; date: string; sent: boolean })
             {sent ? <span className="badge badge--mint">보냄</span> : null}
           </span>
           <span className="sub">
-            사진 {photos}장{videos ? ` · 영상 ${videos}개` : ''} · {formatBytes(bytes)}
+            사진 {photos}장{videos ? ` · 영상 ${videos}개` : ''} · {preparing ?? formatBytes(bytes)}
+            {compress && !preparing && originalBytes > bytes ? ` (원본 ${formatBytes(originalBytes)})` : ''}
             {contacts.length ? ` · ${contacts.map((c) => c.phone).join(', ')}` : ' · 연락처 없음'}
           </span>
         </span>
       </div>
       <ShareThumbs items={items} />
+      {items.length > 0 ? (
+        <label className="sexbox" style={{ height: 40, fontSize: 13, fontWeight: 500 }}>
+          <input type="checkbox" checked={compress} onChange={(e) => setCompress(e.target.checked)} />
+          사진 압축해서 보내기 (2048px · 빠름, 화면 보기엔 차이 없음)
+        </label>
+      ) : null}
       {items.length === 0 ? <span className="sub">오늘 저장된 사진이 없어요</span> : null}
       {items.length > 0 && !supported ? <span className="sub" style={{ color: 'var(--pink)' }}>이 브라우저는 파일 공유를 지원하지 않아요. 누르면 파일로 내려받아요.</span> : null}
       {batches.length <= 1 ? (
-        <button type="button" className={`btn ${sent ? 'btn--outline' : ''}`} disabled={busy || items.length === 0} onClick={() => send(0)}>
-          {sent ? '다시 보내기' : '보호자에게 보내기'}
+        <button type="button" className={`btn ${sent ? 'btn--outline' : ''}`} disabled={busy || !ready} onClick={() => send(0)}>
+          {preparing ?? (sent ? '다시 보내기' : '보호자에게 보내기')}
         </button>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span className="sub">용량이 커서 {batches.length}묶음으로 나눠 보내요</span>
           {batches.map((b, i) => (
-            <button key={i} type="button" className={`btn ${doneBatches.has(i) ? 'btn--ghost' : ''}`} disabled={busy} onClick={() => send(i)}>
+            <button key={i} type="button" className={`btn ${doneBatches.has(i) ? 'btn--ghost' : ''}`} disabled={busy || !ready} onClick={() => send(i)}>
               {doneBatches.has(i) ? '✓ ' : ''}{i + 1}묶음 보내기 ({b.length}개)
             </button>
           ))}

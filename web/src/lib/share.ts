@@ -13,16 +13,43 @@ const EXT: Record<string, string> = {
   'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
 };
 
-/** 미디어를 File 객체로. 파일명은 강아지_날짜_순번. */
-export function toShareFiles(items: MediaItem[], dogName: string, date: string): File[] {
+/** 보내기용 사진 축소. 긴 변 maxSide, JPEG. 4K 원본 3~5MB → 0.5MB 안팎. 영상은 손대지 않는다. */
+export async function compressImage(blob: Blob, maxSide = 2048, quality = 0.82): Promise<Blob> {
+  const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  if (scale === 1 && blob.type === 'image/jpeg' && blob.size < 1.5 * 1024 * 1024) { bitmap.close(); return blob; }
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { bitmap.close(); return blob; }
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? blob), 'image/jpeg', quality));
+}
+
+/** 미디어를 File 객체로. 파일명은 강아지_날짜_순번. compress면 사진을 축소한다. */
+export async function toShareFiles(
+  items: MediaItem[],
+  dogName: string,
+  date: string,
+  compress: boolean,
+  onProgress?: (done: number, total: number) => void,
+): Promise<File[]> {
   const files: File[] = [];
-  items.forEach((m, i) => {
-    if (!m.blob) return;
-    const type = m.mimeType || m.blob.type || (m.kind === 'VIDEO' ? 'video/mp4' : 'image/jpeg');
-    const base = type.split(';')[0];
-    const ext = EXT[base] ?? (m.kind === 'VIDEO' ? 'mp4' : 'jpg');
-    files.push(new File([m.blob], `${dogName}_${date}_${String(i + 1).padStart(2, '0')}.${ext}`, { type: base }));
-  });
+  let i = 0;
+  for (const m of items) {
+    i++;
+    if (!m.blob) continue;
+    let blob = m.blob;
+    let type = (m.mimeType || m.blob.type || (m.kind === 'VIDEO' ? 'video/mp4' : 'image/jpeg')).split(';')[0];
+    if (compress && m.kind === 'PHOTO') {
+      try { blob = await compressImage(m.blob); type = 'image/jpeg'; } catch { /* 실패하면 원본 */ }
+    }
+    const ext = EXT[type] ?? (m.kind === 'VIDEO' ? 'mp4' : 'jpg');
+    files.push(new File([blob], `${dogName}_${date}_${String(i).padStart(2, '0')}.${ext}`, { type }));
+    onProgress?.(i, items.length);
+  }
   return files;
 }
 

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate, markSessionReviewing } from '../db/repo';
-import { MAX_VIDEO_MS, applyNativeZoom, cameraErrorMessage, capturePhotoBest, makeThumbnail, nativeZoomRange, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { MAX_VIDEO_MS, applyModeResolution, applyNativeZoom, cameraErrorMessage, capturePhotoBest, makeThumbnail, nativeZoomRange, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
 
@@ -209,6 +209,12 @@ export function CameraScreen() {
   useEffect(() => {
     if (!sessionId) getOrCreateOpenSession().then(setSession);
   }, [sessionId, setSession]);
+
+  // 사진 4K / 영상 1080p. 스트림을 다시 열지 않고 트랙 제약만 바꾼다.
+  useEffect(() => {
+    if (!ready) return;
+    applyModeResolution(streamRef.current, mode).then(() => setResolution(streamResolution(streamRef.current)));
+  }, [mode, ready]);
 
   const selectedDogs = allDogs.filter((d) => selectedDogIds.includes(d.id));
   // "코코 외 1마리" 식 짧은 이름. 토스트와 아래 사진 줄 제목에 쓴다.
