@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 
-import { db, type Dog, type MediaItem, type MediaKind, type Sex } from './db';
+import { db, type Dog, type GuardianContact, type MediaItem, type MediaKind, type Sex } from './db';
 
 const now = () => new Date().toISOString();
 
@@ -89,6 +89,30 @@ async function clearFolderReviewed(dogIds: string[]): Promise<void> {
   for (const dogId of new Set(dogIds)) await db.folderReviews.where('[date+dogId]').equals([date, dogId]).delete();
 }
 
+// ---------- 발송 ----------
+
+export async function listSentDogIds(date: string): Promise<string[]> {
+  const rows = await db.sendLogs.where('date').equals(date).toArray();
+  return rows.map((r) => r.dogId);
+}
+
+export async function markSent(date: string, dogId: string, mediaCount: number): Promise<void> {
+  await db.transaction('rw', db.sendLogs, async () => {
+    await db.sendLogs.where('[date+dogId]').equals([date, dogId]).delete();
+    await db.sendLogs.add({ id: ulid(), date, dogId, sentAt: now(), mediaCount });
+  });
+}
+
+export async function listContacts(dogId: string): Promise<GuardianContact[]> {
+  return db.guardianContacts.where('dogId').equals(dogId).toArray();
+}
+
+/** 강아지의 오늘(로컬 날짜) 저장 사진·영상. 발송 묶음. */
+export async function listDogKeptOn(dogId: string, date: string): Promise<MediaItem[]> {
+  const all = await listDogKept(dogId);
+  return all.filter((m) => localDate(new Date(m.takenAt)) === date);
+}
+
 // ---------- 세션 ----------
 
 export async function getOrCreateOpenSession(): Promise<string> {
@@ -171,7 +195,7 @@ export async function finishSessionReview(
 }
 
 export type FolderSummary = {
-  perDog: { dog: Dog; count: number; aCut: number; reviewed: boolean }[];
+  perDog: { dog: Dog; count: number; aCut: number; reviewed: boolean; sent: boolean }[];
   unassigned: number;
 };
 
@@ -184,9 +208,10 @@ export async function listTodayFolders(dateIso: string): Promise<FolderSummary> 
   const unassigned = kept.filter((m) => m.dogIds.length === 0).length;
   const dogs = await listActiveDogs();
   const reviewed = new Set(await listReviewedDogIds(localDate()));
+  const sent = new Set(await listSentDogIds(localDate()));
   const perDog = dogs.map((dog) => {
     const mine = kept.filter((m) => m.dogIds.includes(dog.id));
-    return { dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length, reviewed: reviewed.has(dog.id) };
+    return { dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length, reviewed: reviewed.has(dog.id), sent: sent.has(dog.id) };
   });
   return { perDog, unassigned };
 }

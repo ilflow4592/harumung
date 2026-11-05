@@ -40,6 +40,15 @@ export interface FolderReview {
   reviewedAt: string;
 }
 
+/** 보호자에게 보낸 기록. 날짜·강아지별. 공유 시트를 끝까지 마쳤을 때만 기록. */
+export interface SendLog {
+  id: string;
+  date: string;
+  dogId: string;
+  sentAt: string;
+  mediaCount: number;
+}
+
 export interface ShootSession {
   id: string;
   startedAt: string;
@@ -74,6 +83,7 @@ class HarumungDB extends Dexie {
   media!: EntityTable<MediaItem, 'id'>;
   attendance!: EntityTable<Attendance, 'id'>;
   folderReviews!: EntityTable<FolderReview, 'id'>;
+  sendLogs!: EntityTable<SendLog, 'id'>;
 
   constructor() {
     super('harumung');
@@ -89,6 +99,9 @@ class HarumungDB extends Dexie {
     });
     this.version(3).stores({
       folderReviews: 'id, date, dogId, [date+dogId]',
+    });
+    this.version(4).stores({
+      sendLogs: 'id, date, dogId, [date+dogId]',
     });
   }
 }

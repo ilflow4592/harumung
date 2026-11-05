@@ -105,6 +105,7 @@ textarea.input { height: 72px; padding: 12px 14px; resize: none; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .stat { padding: 12px; border-radius: 14px; display: flex; flex-direction: column; gap: 2px; }
 .stat b { font-size: 20px; }
+a.stat { color: inherit; }
 .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .cell {

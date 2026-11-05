@@ -151,9 +151,14 @@ export function FolderReviewScreen() {
         </footer>
       ) : folderDog && items.length > 0 ? (
         <footer className="footer">
-          <button type="button" className={`btn ${reviewed ? 'btn--ghost' : ''}`} disabled={busy} onClick={toggleReviewed}>
-            {reviewed ? '검수 다시 열기' : '검수 완료 · 발송 준비'}
-          </button>
+          {reviewed ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="btn btn--ghost" style={{ flex: 1 }} disabled={busy} onClick={toggleReviewed}>검수 다시 열기</button>
+              <button type="button" className="btn" style={{ flex: 1.4 }} onClick={() => navigate('/send')}>보호자에게 보내기</button>
+            </div>
+          ) : (
+            <button type="button" className="btn" disabled={busy} onClick={toggleReviewed}>검수 완료 · 발송 준비</button>
+          )}
         </footer>
       ) : null}
 

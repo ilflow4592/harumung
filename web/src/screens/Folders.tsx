@@ -49,7 +49,7 @@ export function FoldersScreen() {
         <div className="stats">
           <div className="stat" style={{ background: 'var(--surface)' }}><span className="sub">촬영</span><b>{total}</b></div>
           <div className="stat" style={{ background: 'var(--pink-light)', color: 'var(--pink)' }}><span style={{ fontSize: 12 }}>미지정</span><b>{unassigned}</b></div>
-          <div className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>발송 준비</span><b>{perDog.filter((f) => f.reviewed).length}</b></div>
+          <Link to="/send" className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>발송 준비 →</span><b>{perDog.filter((f) => f.reviewed && !f.sent).length}</b></Link>
         </div>
         <SearchBox value={query} onChange={setQuery} />
       </header>
@@ -96,17 +96,24 @@ export function FoldersScreen() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="title">{f.dog.name}</span>
                 <SexBadge sex={f.dog.sex} />
-                {f.reviewed ? <span className="check check--on check--sm" aria-label="검수 완료">✓</span> : null}
+                {f.reviewed || f.sent ? <span className="check check--on check--sm" aria-label="검수 완료">✓</span> : null}
               </span>
               <span className="sub">사진 {f.count}장 · A컷 {f.aCut}장</span>
             </span>
-            <Chip label={f.reviewed ? '발송 준비' : f.count > 0 ? '검수 전' : '촬영 중'} tone={f.reviewed ? 'mint' : f.count > 0 ? 'blue' : 'gray'} />
+            <Chip label={f.sent ? '보냄' : f.reviewed ? '발송 준비' : f.count > 0 ? '검수 전' : '촬영 중'} tone={f.sent ? 'mint' : f.reviewed ? 'blue' : f.count > 0 ? 'pink' : 'gray'} />
           </button>
         ))}
       </main>
 
       <footer className="footer footer--surface" style={{ borderTop: 0 }}>
-        <button type="button" className="btn" onClick={() => navigate('/camera')}>촬영 시작</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="btn" style={{ flex: 1.6 }} onClick={() => navigate('/camera')}>촬영 시작</button>
+          {perDog.some((f) => f.reviewed && !f.sent) ? (
+            <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => navigate('/send')}>
+              보내기 ({perDog.filter((f) => f.reviewed && !f.sent).length})
+            </button>
+          ) : null}
+        </div>
       </footer>
 
       <DogSheet dog={picked} count={pickedCount} onClose={() => setPicked(null)} />
