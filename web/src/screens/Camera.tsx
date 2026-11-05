@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { DogAvatar } from '../components/ui';
-import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, markSessionReviewing } from '../db/repo';
+import { DogAvatar, useObjectUrl } from '../components/ui';
+import type { MediaItem } from '../db/db';
+import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listSessionMedia, markSessionReviewing } from '../db/repo';
 import { capturePhoto, makeThumbnail, openCamera, startRecording, stopStream, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
 import { useCaptureStore } from '../store/capture';
 
@@ -21,6 +22,20 @@ export function CameraScreen() {
 
   const { sessionId, mode, selectedDogIds, shotCount, setSession, setMode, selectDog, toggleMultiDog, bumpShotCount } = useCaptureStore();
   const { data: dogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
+  const qc = useQueryClient();
+  const { data: sessionMedia = [] } = useQuery({
+    queryKey: ['session-media', sessionId],
+    queryFn: () => (sessionId ? listSessionMedia(sessionId) : Promise.resolve([])),
+    enabled: !!sessionId,
+  });
+  // 촬영·가져오기 뒤 호출. 아래 사진 줄을 갱신한다.
+  const refreshStrip = useCallback(() => qc.invalidateQueries({ queryKey: ['session-media', sessionId] }), [qc, sessionId]);
+
+  // 지금 선택된 강아지(단일)의 이번 세션 사진. 미지정 모드면 미지정 사진. 다중 선택이면 첫 강아지 기준.
+  const stripMedia = useMemo(() => {
+    const key = selectedDogIds[0] ?? null;
+    return sessionMedia.filter((m) => (key ? m.dogIds.includes(key) : m.dogIds.length === 0));
+  }, [sessionMedia, selectedDogIds]);
 
   // 스트림 열기. 화면 복귀(visibilitychange) 시 멈춘 스트림을 다시 연다 (iOS 사파리 대응).
   useEffect(() => {
@@ -67,10 +82,11 @@ export function CameraScreen() {
       const thumbBlob = await makeThumbnail(blob);
       await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob, thumbBlob, mimeType: 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
       bumpShotCount();
+      refreshStrip();
     } finally {
       setBusy(false);
     }
-  }, [sessionId, busy, selectedDogIds, bumpShotCount]);
+  }, [sessionId, busy, selectedDogIds, bumpShotCount, refreshStrip]);
 
   const toggleRecording = useCallback(async () => {
     if (!sessionId || !streamRef.current) return;
@@ -85,10 +101,11 @@ export function CameraScreen() {
         const thumbBlob = await videoThumbnail(blob);
         await insertCapturedMedia({ sessionId, kind: 'VIDEO', blob, thumbBlob, mimeType, durationMs, dogIds: dogIdsAtStart });
         bumpShotCount();
+        refreshStrip();
       })
       .catch((e) => setError(String(e)))
       .finally(() => { setRecording(false); setBusy(false); recRef.current = null; });
-  }, [recording, sessionId, selectedDogIds, bumpShotCount]);
+  }, [recording, sessionId, selectedDogIds, bumpShotCount, refreshStrip]);
 
   /** 앨범에서 가져온 사진·영상을 현재 지정 강아지로 세션에 넣는다. 여러 장 가능. */
   const importFromAlbum = useCallback(
@@ -111,13 +128,14 @@ export function CameraScreen() {
           }
           bumpShotCount();
         }
+        refreshStrip();
       } finally {
         setImporting(null);
         setBusy(false);
         if (albumInput.current) albumInput.current.value = '';
       }
     },
-    [sessionId, selectedDogIds, bumpShotCount],
+    [sessionId, selectedDogIds, bumpShotCount, refreshStrip],
   );
 
   const close = useCallback(async () => {
@@ -176,6 +194,7 @@ export function CameraScreen() {
             );
           })}
         </div>
+        <ShotStrip items={stripMedia} label={selectedDogs[0]?.name ?? '미지정'} />
         <div className="cam__controls">
           <button type="button" className="cam__side" onClick={close}>폴더</button>
           <button
@@ -207,6 +226,37 @@ export function CameraScreen() {
         </div>
       </div>
       {importing ? <div className="cam__toast">{importing}</div> : null}
+    </div>
+  );
+}
+
+/** 선택된 강아지의 이번 세션 사진 줄. 촬영 순서대로, 새 사진이 오른쪽 끝에 붙고 자동으로 끝까지 스크롤. */
+function ShotStrip({ items, label }: { items: MediaItem[]; label: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
+  }, [items.length]);
+  return (
+    <div className="cam__shots">
+      <div className="cam__shots-head">
+        <span>{label} · {items.length}장</span>
+        {items.length === 0 ? <span style={{ color: '#D1D5DB' }}>아직 찍은 사진이 없어요</span> : null}
+      </div>
+      <div ref={ref} className="cam__shots-row">
+        {items.map((m, i) => <ShotThumb key={m.id} m={m} index={i + 1} />)}
+      </div>
+    </div>
+  );
+}
+
+function ShotThumb({ m, index }: { m: MediaItem; index: number }) {
+  const url = useObjectUrl(m.thumbBlob ?? m.blob);
+  return (
+    <div className="cam__shot">
+      {url ? <img src={url} alt="" /> : null}
+      <span className="cam__shot-no">{index}</span>
+      {m.kind === 'VIDEO' ? <span className="cell__dur">{Math.round((m.durationMs ?? 0) / 1000)}초</span> : null}
     </div>
   );
 }
