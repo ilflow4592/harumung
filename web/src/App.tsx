@@ -20,9 +20,7 @@ import { SettingsScreen } from './screens/Settings';
 export default function App() {
   const qc = useQueryClient();
   const location = useLocation();
-  // 화면 전환마다 pageview
-  useEffect(() => { trackPageview(location.pathname + location.search); }, [location.pathname, location.search]);
-  // 앱을 열 때 하루 한 번, 보낸 지 N일 지난 원본 정리
+  // 앱을 열 때: 유치원 코드로 사람 식별(첫 pageview보다 먼저), 하루 한 번 보낸 지 N일 지난 원본 정리
   useEffect(() => {
     const partner = initPartnerFromUrl();
     track('app_opened', { has_partner: !!partner });
@@ -32,6 +30,8 @@ export default function App() {
       if (r && r.count > 0) qc.invalidateQueries();
     }).catch(() => undefined);
   }, [qc]);
+  // 화면 전환마다 pageview
+  useEffect(() => { trackPageview(location.pathname + location.search); }, [location.pathname, location.search]);
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/folders" replace />} />

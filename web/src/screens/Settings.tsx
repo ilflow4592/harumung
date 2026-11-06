@@ -184,7 +184,7 @@ export function SettingsScreen() {
               <input id="partner-code" className="input" value={partner} onChange={(e) => setPartnerInput(e.target.value)} placeholder="받은 링크의 u= 뒤 값" autoCapitalize="none" autoCorrect="off" />
               <button type="button" className="btn" style={{ width: 'auto', padding: '0 16px' }} onClick={savePartner}>저장</button>
             </div>
-            <span className="sub">어느 유치원에서 쓰는지 구분하는 용도예요. 링크로 열었으면 자동으로 들어가 있어요.</span>
+            <span className="sub">어느 유치원에서 쓰는지 구분하는 용도예요. 한글도 돼요. 링크로 열었으면 자동으로 들어가 있어요.</span>
           </div>
           <table className="kv">
             <tbody>

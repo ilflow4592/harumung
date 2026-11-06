@@ -65,7 +65,8 @@ export function getPartner(): string | null {
 }
 
 export function setPartner(code: string | null): void {
-  const clean = (code ?? '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40) || null;
+  // 한글·영문·숫자·하이픈·밑줄만 남긴다. 공백은 하이픈으로. (예: "해피독 유치원" → "해피독-유치원")
+  const clean = (code ?? '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, 40) || null;
   try { if (clean) localStorage.setItem(PARTNER_KEY, clean); else localStorage.removeItem(PARTNER_KEY); } catch { /* 무시 */ }
   if (!enabled) return;
   try {
