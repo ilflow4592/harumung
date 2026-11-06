@@ -389,6 +389,9 @@ a.stat { color: inherit; }
 .guide__toc a { color: var(--mint); font-weight: 700; font-size: 14px; padding: 4px 0; }
 .guide__section { scroll-margin-top: 64px; padding-top: 10px; border-top: 1px solid var(--line); margin-top: 8px; }
 .guide__section h2 { font-size: 19px; margin: 6px 0 12px; }
+.guide__section h3 { font-size: 15.5px; margin: 16px 0 8px; }
+.guide__note { padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); margin: 0 0 12px; font-size: 14px; }
+.guide__outro { text-align: center; font-weight: 700; margin: 18px 0 6px; }
 .guide__tablewrap { overflow-x: auto; margin: 0 -4px 12px; }
 .guide__table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.5; }
 .guide__table th, .guide__table td { text-align: left; vertical-align: top; padding: 8px 8px; border-bottom: 1px solid var(--line); }
