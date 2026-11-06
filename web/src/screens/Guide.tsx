@@ -232,7 +232,7 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
 function Shot({ src, alt }: { src: string; alt: string }) {
   return (
     <figure className="guide__shot">
-      <img src={`/guide/${src}.jpg`} alt={alt} loading="lazy" />
+      <img src={`${import.meta.env.BASE_URL}guide/${src}.jpg`} alt={alt} loading="lazy" />
       <figcaption>{alt}</figcaption>
     </figure>
   );

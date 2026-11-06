@@ -5,7 +5,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // 카메라(getUserMedia)는 https 또는 localhost에서만 열린다.
 // 폰에서 테스트할 때는 `npm run dev -- --host`로 띄우고 https://<맥 IP>:5173 으로 접속한다.
+// 배포 기준 경로. GitHub Pages는 /harumung/ 하위에 뜬다 (워크플로에서 VITE_BASE로 지정). 로컬은 /.
+const base = process.env.VITE_BASE ?? '/';
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     basicSsl(),
@@ -17,7 +21,8 @@ export default defineConfig({
         short_name: '하루멍',
         description: '찍는 순간 이름이 붙고, 저녁엔 보호자에게 아이의 하루가 도착하는 앱',
         lang: 'ko',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#FFFFFF',
@@ -29,7 +34,7 @@ export default defineConfig({
       },
       workbox: {
         // 앱 셸만 캐시한다. 사진·영상·API는 캐시하지 않는다.
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,png,jpg,svg,woff2}'],
         navigateFallbackDenylist: [/^\/v1\//, /^\/a\//, /^\/actuator\//],
       },
     }),
