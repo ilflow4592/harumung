@@ -43,6 +43,53 @@ export async function createDog(input: {
   return id;
 }
 
+export async function getDog(id: string): Promise<(Dog & { phones: string[] }) | null> {
+  const dog = await db.dogs.get(id);
+  if (!dog) return null;
+  const contacts = await db.guardianContacts.where('dogId').equals(id).toArray();
+  const phones = contacts.sort((a, b) => b.isPrimary - a.isPrimary).map((c) => c.phone);
+  return { ...dog, phones };
+}
+
+export async function updateDog(id: string, input: {
+  name: string;
+  sex: Sex;
+  thumbBlob: Blob | null;
+  memo: string | null;
+  phones: string[];
+}): Promise<void> {
+  await db.transaction('rw', db.dogs, db.guardianContacts, async () => {
+    await db.dogs.update(id, { name: input.name, sex: input.sex, thumbBlob: input.thumbBlob, memo: input.memo });
+    await db.guardianContacts.where('dogId').equals(id).delete();
+    const phones = input.phones.filter((p) => p.length > 0).slice(0, 2);
+    await db.guardianContacts.bulkAdd(phones.map((phone, i) => ({ id: ulid(), dogId: id, phone, isPrimary: i === 0 ? 1 : 0 })));
+  });
+}
+
+/** 퇴원: 목록·카메라에서 숨긴다. 사진은 그대로 남는다. */
+export async function setDogActive(id: string, active: boolean): Promise<void> {
+  await db.dogs.update(id, { active: active ? 1 : 0 });
+}
+
+export async function listInactiveDogs(): Promise<Dog[]> {
+  const rows = await db.dogs.where('active').equals(0).toArray();
+  return rows.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+}
+
+/** 완전 삭제. 사진이 한 장도 없을 때만 허용. 있으면 false. */
+export async function deleteDogIfEmpty(id: string): Promise<boolean> {
+  const count = await db.media.where('dogIds').equals(id).count();
+  if (count > 0) return false;
+  await db.transaction('rw', db.dogs, db.guardianContacts, db.attendance, db.folderReviews, db.sendLogs, async () => {
+    await db.guardianContacts.where('dogId').equals(id).delete();
+    await db.attendance.where('dogId').equals(id).delete();
+    await db.folderReviews.where('dogId').equals(id).delete();
+    await db.sendLogs.where('dogId').equals(id).delete();
+    await db.dogs.delete(id);
+  });
+  return true;
+}
+
 // ---------- 등원 체크 ----------
 
 export async function listAttendedDogIds(date: string): Promise<string[]> {

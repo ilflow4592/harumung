@@ -41,6 +41,7 @@ export function DogSheet({ dog, count, onClose }: { dog: Dog | null; count?: num
         </div>
         <button type="button" className="btn" onClick={startShoot}>촬영 시작</button>
         <button type="button" className="btn btn--outline" onClick={() => navigate(`/folders/${dog.id}`)}>사진 폴더 검수</button>
+        <button type="button" className="btn btn--ghost" onClick={() => navigate(`/dogs/${dog.id}/edit`)}>정보 수정 · 퇴원</button>
         <button type="button" className="btn btn--ghost" onClick={close}>취소</button>
       </div>
     </div>

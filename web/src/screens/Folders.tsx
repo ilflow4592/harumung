@@ -46,7 +46,7 @@ export function FoldersScreen() {
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
             <Link to="/settings" className="icon-btn" aria-label="설정" style={{ fontSize: 22 }}>⚙</Link>
-            <Link to="/dogs/new" className="icon-btn icon-btn--mint" aria-label="강아지 등록">+</Link>
+            <Link to="/dogs" className="icon-btn icon-btn--mint" aria-label="강아지 관리" style={{ fontSize: 13, width: 'auto', padding: '0 12px' }}>강아지</Link>
           </div>
         </div>
         <div className="stats">

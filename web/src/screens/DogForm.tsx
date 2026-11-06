@@ -1,10 +1,10 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { TopBar } from '../components/ui';
 import type { Sex } from '../db/db';
-import { createDog } from '../db/repo';
+import { createDog, deleteDogIfEmpty, getDog, setDogActive, updateDog } from '../db/repo';
 import { makeThumbnail } from '../lib/camera';
 
 // iOS 사파리는 파일 입력을 열면 항상 자체 시트(사진 보관함·사진 찍기·파일 선택)를 띄운다.
@@ -14,9 +14,14 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 const normalizePhone = (s: string) => s.replace(/[^0-9]/g, '');
 const isPhone = (s: string) => /^01[016789][0-9]{7,8}$/.test(s);
 
+/** 강아지 등록(/dogs/new)과 수정(/dogs/:dogId/edit)을 같이 쓴다. */
 export function DogFormScreen() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { dogId } = useParams();
+  const editing = !!dogId;
+  const { data: existing } = useQuery({ queryKey: ['dog', dogId], queryFn: () => getDog(dogId ?? ''), enabled: editing });
+  const [loaded, setLoaded] = useState(false);
   const [name, setName] = useState('');
   const [sex, setSex] = useState<Sex | null>(null);
   const [thumb, setThumb] = useState<Blob | null>(null);
@@ -28,6 +33,18 @@ export function DogFormScreen() {
   const [phone2, setPhone2] = useState('');
   const [showPhone2, setShowPhone2] = useState(false);
   const [memo, setMemo] = useState('');
+
+  // 수정 모드: 기존 값을 한 번만 폼에 채운다
+  useEffect(() => {
+    if (!existing || loaded) return;
+    setName(existing.name);
+    setSex(existing.sex);
+    setMemo(existing.memo ?? '');
+    setPhone1(existing.phones[0] ?? '');
+    if (existing.phones[1]) { setPhone2(existing.phones[1]); setShowPhone2(true); }
+    if (existing.thumbBlob) { setThumb(existing.thumbBlob); setThumbUrl(URL.createObjectURL(existing.thumbBlob)); }
+    setLoaded(true);
+  }, [existing, loaded]);
 
   const p1 = normalizePhone(phone1);
   const p2 = normalizePhone(phone2);
@@ -52,17 +69,46 @@ export function DogFormScreen() {
     if (albumInput.current) albumInput.current.value = '';
   };
 
+  const invalidate = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['dogs'] }),
+      qc.invalidateQueries({ queryKey: ['dog'] }),
+      qc.invalidateQueries({ queryKey: ['folders'] }),
+      qc.invalidateQueries({ queryKey: ['contacts'] }),
+      qc.invalidateQueries({ queryKey: ['inactive-dogs'] }),
+    ]);
+  };
+
   const submit = async () => {
     if (!valid || !sex) return;
-    await createDog({ name: name.trim(), sex, thumbBlob: thumb, memo: memo.trim() || null, phones: [p1, p2] });
-    await qc.invalidateQueries({ queryKey: ['dogs'] });
-    await qc.invalidateQueries({ queryKey: ['folders'] });
+    const input = { name: name.trim(), sex, thumbBlob: thumb, memo: memo.trim() || null, phones: [p1, p2] };
+    if (editing && dogId) await updateDog(dogId, input);
+    else await createDog(input);
+    await invalidate();
     navigate(-1);
+  };
+
+  /** 퇴원: 숨기기만. 사진은 남는다. 사진이 없으면 완전 삭제를 제안. */
+  const retire = async () => {
+    if (!dogId) return;
+    if (!window.confirm(`${name}을(를) 퇴원 처리할까요? 목록과 카메라에서 사라지고, 사진은 남아요. 설정에서 되돌릴 수 있어요.`)) return;
+    await setDogActive(dogId, false);
+    await invalidate();
+    navigate('/dogs', { replace: true });
+  };
+
+  const remove = async () => {
+    if (!dogId) return;
+    if (!window.confirm(`${name}을(를) 완전히 삭제할까요? 되돌릴 수 없어요.`)) return;
+    const ok = await deleteDogIfEmpty(dogId);
+    if (!ok) { window.alert('사진이 있는 아이는 삭제할 수 없어요. 대신 퇴원 처리를 해 주세요.'); return; }
+    await invalidate();
+    navigate('/dogs', { replace: true });
   };
 
   return (
     <div className="screen">
-      <TopBar title="강아지 등록" onBack={() => navigate(-1)} />
+      <TopBar title={editing ? '강아지 정보 수정' : '강아지 등록'} onBack={() => navigate(-1)} />
       <main className="body" style={{ gap: 20, paddingBottom: 120 }}>
         <div style={{ alignSelf: 'center', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
           <button
@@ -137,8 +183,14 @@ export function DogFormScreen() {
           <textarea id="memo" className="input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="알레르기, 성향, 주의할 점" />
         </div>
       </main>
+      {editing ? (
+        <div className="body" style={{ paddingTop: 0, gap: 8 }}>
+          <button type="button" className="btn btn--ghost" style={{ color: 'var(--pink)' }} onClick={retire}>퇴원 처리 (목록에서 숨김)</button>
+          <button type="button" className="btn btn--ghost btn--small" style={{ alignSelf: 'center', color: 'var(--text-2)' }} onClick={remove}>완전 삭제 (사진이 없을 때만)</button>
+        </div>
+      ) : null}
       <footer className="footer">
-        <button type="button" className="btn" disabled={!valid} onClick={submit}>등록하기</button>
+        <button type="button" className="btn" disabled={!valid || (editing && !loaded)} onClick={submit}>{editing ? '저장' : '등록하기'}</button>
       </footer>
     </div>
   );

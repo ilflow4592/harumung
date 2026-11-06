@@ -30,6 +30,7 @@ export default function App() {
       <Route path="/session-review" element={<SessionReviewScreen />} />
       <Route path="/dogs" element={<DogsScreen />} />
       <Route path="/dogs/new" element={<DogFormScreen />} />
+      <Route path="/dogs/:dogId/edit" element={<DogFormScreen />} />
       <Route path="/send" element={<SendScreen />} />
       <Route path="/settings" element={<SettingsScreen />} />
       <Route path="*" element={<Navigate to="/folders" replace />} />
