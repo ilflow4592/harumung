@@ -29,6 +29,9 @@ export function GuideScreen() {
     <div className="screen">
       <TopBar title="사용 안내" onBack={() => navigate(-1)} />
       <main className="body guide" style={{ paddingBottom: 60 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0 8px' }}>
+          <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="하루멍 로고" width={120} height={120} />
+        </div>
         <p className="guide__lead">
           하루멍은 애견유치원에서 강아지를 정해 놓고 사진·영상을 찍고, 검수한 뒤, 보호자에게 카톡으로 바로 보내는 앱입니다.
           앱스토어 설치 없이 브라우저 링크로 열고, 모든 사진은 선생님 폰 안에만 저장됩니다.

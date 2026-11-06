@@ -40,7 +40,8 @@ export function FoldersScreen() {
     <div className="screen screen--surface">
       <header className="topbar" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 14, padding: 'calc(var(--safe-top) + 12px) 20px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src={`${import.meta.env.BASE_URL}logo-face-128.png`} alt="" width={36} height={36} style={{ borderRadius: 10 }} />
             <h1 style={{ fontSize: 22 }}>{relativeLabel(date) ?? '지난'} 폴더</h1>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
