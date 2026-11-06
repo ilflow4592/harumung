@@ -95,7 +95,7 @@ export function PhotoEditor({ item, onClose, onSaved }: { item: MediaItem; onClo
       <div className="viewer__top">
         <button type="button" className="cam__round" aria-label="닫기" onClick={onClose}>✕</button>
         <span className="viewer__counter">사진 편집</span>
-        <button type="button" className="cam__round" style={{ fontSize: 12 }} onClick={() => setEdit(DEFAULT_EDIT)} disabled={!changed}>초기화</button>
+        <button type="button" className="cam__round" style={{ fontSize: 12, width: 'auto', padding: '0 12px' }} onClick={() => setEdit(DEFAULT_EDIT)} disabled={!changed}>초기화</button>
       </div>
       <div ref={boxRef} className="editor__stage">
         {preview ? (
