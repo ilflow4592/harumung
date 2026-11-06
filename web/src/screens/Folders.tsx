@@ -22,7 +22,7 @@ export function FoldersScreen() {
   const [showAbsent, setShowAbsent] = useState(false);
   const perDog = data?.perDog ?? [];
   const unassigned = data?.unassigned ?? 0;
-  const total = perDog.reduce((n, f) => n + f.count, 0) + unassigned;
+  const total = data?.total ?? 0;
   const filtered = useMemo(() => perDog.filter((f) => matchesName(f.dog.name, query)), [perDog, query]);
   // 등원 체크가 있으면: 등원했거나 사진이 있는 아이만 본 목록, 나머지는 접힌 "오늘 안 온 아이".
   const hasAttendance = attended.length > 0;

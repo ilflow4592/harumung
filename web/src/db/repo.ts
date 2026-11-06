@@ -355,6 +355,8 @@ export async function finishSessionReview(
 export type FolderSummary = {
   perDog: { dog: Dog; count: number; aCut: number; reviewed: boolean; sent: boolean }[];
   unassigned: number;
+  /** 그날 저장된 사진·영상 수. 합사 사진은 한 번만 센다. */
+  total: number;
 };
 
 /** 오늘 폴더 목록: 강아지별 kept 개수 + 미지정 개수. */
@@ -371,7 +373,7 @@ export async function listFolders(date: string): Promise<FolderSummary> {
     const mine = kept.filter((m) => m.dogIds.includes(dog.id));
     return { dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length, reviewed: reviewed.has(dog.id), sent: sent.has(dog.id) };
   });
-  return { perDog, unassigned };
+  return { perDog, unassigned, total: kept.length };
 }
 
 /** 미지정 폴더: 강아지 없이 저장된 사진 전부 (최근 순). */

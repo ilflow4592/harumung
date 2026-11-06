@@ -39,8 +39,9 @@ export default defineConfig({
     // 터널(cloudflared 등)로 접속할 때 호스트 검사에 막히지 않게 한다. 개발 전용.
     allowedHosts: true,
     proxy: {
-      '/v1': 'http://localhost:8080',
-      '/a': 'http://localhost:8080',
+      // 서버 보류 중. 서버를 띄우면 앨범 웹(/a/{token})만 프록시. '/a' 접두어는 /attendance까지 잡으므로 정규식.
+      '^/v1/': 'http://localhost:8080',
+      '^/a/': 'http://localhost:8080',
     },
   },
   build: {

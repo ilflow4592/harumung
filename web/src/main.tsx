@@ -6,6 +6,9 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './styles.css';
 
+// 개발 빌드에서만 테스트 데이터 함수를 노출한다 (window.__harumungSeed)
+if (import.meta.env.DEV) void import('./dev/seed');
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 5_000 } },
 });
