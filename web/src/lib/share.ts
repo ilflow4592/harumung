@@ -32,6 +32,17 @@ function enqueueVideo<T>(fn: () => Promise<T>): Promise<T> {
  */
 
 export type ShareResult = 'shared' | 'cancelled' | 'unsupported' | 'failed';
+export type ShareOutcome = { result: ShareResult; detail?: string };
+
+/** 이 기기의 공유 지원 상태. 화면 진단과 이벤트 속성에 쓴다. */
+export function shareSupport(sample?: File[]): { hasShare: boolean; hasCanShare: boolean; canShareFiles: boolean | null; standalone: boolean } {
+  const hasShare = typeof navigator.share === 'function';
+  const hasCanShare = typeof navigator.canShare === 'function';
+  let can: boolean | null = null;
+  if (hasCanShare && sample && sample.length) { try { can = navigator.canShare({ files: sample }); } catch { can = false; } }
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return { hasShare, hasCanShare, canShareFiles: can, standalone };
+}
 
 const EXT: Record<string, string> = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/heic': 'heic', 'image/webp': 'webp',
@@ -161,15 +172,28 @@ export function canShareFiles(files: File[]): boolean {
   return typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files });
 }
 
-export async function shareFiles(files: File[], title: string, text: string): Promise<ShareResult> {
-  if (!canShareFiles(files)) return 'unsupported';
+/**
+ * 공유 시트 열기. canShare가 false여도 share()를 한 번은 시도한다.
+ * (iOS 홈 화면 앱에서 canShare({files})가 false를 돌려주면서 share는 되는 경우가 있다.)
+ * 파일 공유가 TypeError로 거부되면 파일 없이(제목·본문만) 한 번 더 시도하지 않고 unsupported로 알린다.
+ */
+export async function shareFilesDetailed(files: File[], title: string, text: string): Promise<ShareOutcome> {
+  if (typeof navigator.share !== 'function') return { result: 'unsupported', detail: 'navigator.share 없음' };
   try {
     await navigator.share({ files, title, text });
-    return 'shared';
+    return { result: 'shared' };
   } catch (e) {
-    const name = (e as { name?: string })?.name;
-    return name === 'AbortError' ? 'cancelled' : 'failed';
+    const name = (e as { name?: string })?.name ?? 'Error';
+    const message = (e as { message?: string })?.message ?? '';
+    if (name === 'AbortError') return { result: 'cancelled' };
+    // 파일 공유 자체를 못 하는 환경: TypeError / NotAllowedError(권한·제스처) / DataError
+    if (name === 'TypeError' || name === 'NotAllowedError' || name === 'DataError') return { result: 'unsupported', detail: `${name}: ${message}` };
+    return { result: 'failed', detail: `${name}: ${message}` };
   }
+}
+
+export async function shareFiles(files: File[], title: string, text: string): Promise<ShareResult> {
+  return (await shareFilesDetailed(files, title, text)).result;
 }
 
 /** 공유 미지원 브라우저용: 파일을 하나씩 다운로드. */

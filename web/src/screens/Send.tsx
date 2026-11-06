@@ -6,7 +6,7 @@ import { DateNav, useDateParam } from '../components/DateNav';
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem, SendLog } from '../db/db';
 import { listActiveDogs, listContacts, listDogKeptOn, listReviewedDogIds, listSendLogs, markSent } from '../db/repo';
-import { canShareFiles, downloadFiles, formatBytes, shareFiles, splitBatches, toShareBundle, type PrepareProgress, type ShareEntry } from '../lib/share';
+import { downloadFiles, formatBytes, shareFilesDetailed, shareSupport, splitBatches, toShareBundle, type PrepareProgress, type ShareEntry } from '../lib/share';
 import { track, timer } from '../lib/analytics';
 import { unlockAudio } from '../lib/videoCompress';
 
@@ -158,7 +158,9 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
   const batches = useMemo(() => splitBatches(entries), [entries]);
   const bytes = entries.reduce((n, e) => n + e.file.size, 0);
   const ready = entries.length > 0 && !progress;
-  const supported = ready && canShareFiles(batches[0].map((e) => e.file));
+  const support = ready ? shareSupport(batches[0].map((e) => e.file)) : null;
+  const supported = !!support && support.hasShare;
+  const [diag, setDiag] = useState<string | null>(null);
   const photos = target.filter((m) => m.kind === 'PHOTO');
   const videos = target.filter((m) => m.kind === 'VIDEO');
   const preparing = progress
@@ -176,9 +178,12 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
     try {
       const n = logs.length + doneBatches.size + 1;
       const text = `${dog.name} ${dateLabel(date)} 사진 ${batch.filter((e) => e.item.kind === 'PHOTO').length}장${batch.some((e) => e.item.kind === 'VIDEO') ? ` · 영상 ${batch.filter((e) => e.item.kind === 'VIDEO').length}개` : ''} 🐶`;
-      track('send_attempted', { items: batch.length, bytes: batch.reduce((k, e) => k + e.file.size, 0), batch_index: batchIdx + 1, batches: batches.length, include_sent: includeSent, round: n });
-      const r = await shareFiles(batch.map((e) => e.file), `${dog.name} ${dateLabel(date)} (${n}번째)`, text);
-      track(`send_${r}`, { round: n, items: batch.length });
+      const sup = shareSupport(batch.map((e) => e.file));
+      track('send_attempted', { items: batch.length, bytes: batch.reduce((k, e) => k + e.file.size, 0), batch_index: batchIdx + 1, batches: batches.length, include_sent: includeSent, round: n, has_share: sup.hasShare, can_share_files: sup.canShareFiles, standalone: sup.standalone });
+      const out = await shareFilesDetailed(batch.map((e) => e.file), `${dog.name} ${dateLabel(date)} (${n}번째)`, text);
+      const r = out.result;
+      track(`send_${r}`, { round: n, items: batch.length, detail: out.detail ?? null, has_share: sup.hasShare, can_share_files: sup.canShareFiles, standalone: sup.standalone });
+      setDiag(r === 'shared' || r === 'cancelled' ? null : `${out.detail ?? ''} · share:${sup.hasShare ? 'O' : 'X'} canShare:${sup.canShareFiles === null ? '?' : sup.canShareFiles ? 'O' : 'X'} 홈화면앱:${sup.standalone ? 'O' : 'X'} · ${navigator.userAgent.match(/OS \d+_\d+/)?.[0] ?? ''}`);
       if (r === 'shared') {
         await markSent(date, dog.id, batch.map((e) => e.item));
         await Promise.all([qc.invalidateQueries({ queryKey: ['send-logs'] }), qc.invalidateQueries({ queryKey: ['folders'] })]);
@@ -189,8 +194,8 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
       } else if (r === 'cancelled') {
         setMsg('보내기를 취소했어요');
       } else if (r === 'unsupported') {
-        downloadFiles(batch.map((e) => e.file));
-        setMsg('이 브라우저는 공유를 지원하지 않아 파일로 내려받았어요');
+        if (!sup.standalone) downloadFiles(batch.map((e) => e.file));
+        setMsg(sup.standalone ? '이 폰의 홈 화면 앱에서는 파일 공유가 막혀 있어요. 아래 진단 내용을 피드백으로 보내 주세요.' : '이 브라우저는 공유를 지원하지 않아 파일로 내려받았어요');
       } else {
         setMsg('공유에 실패했어요. 묶음이 너무 크면 사진을 줄여 다시 시도해 주세요');
       }
@@ -235,7 +240,7 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
       {target.length === 0 && items.length > 0 ? <span className="sub">오늘 사진은 모두 보냈어요</span> : null}
       {items.length === 0 ? <span className="sub">저장된 사진이 없어요</span> : null}
       {items.length > 0 && items.some((m) => !m.blob) ? <span className="sub" style={{ color: 'var(--danger)' }}>원본이 정리된 사진은 보낼 수 없어요</span> : null}
-      {ready && !supported ? <span className="sub" style={{ color: 'var(--danger)' }}>이 브라우저는 파일 공유를 지원하지 않아요. 누르면 파일로 내려받아요.</span> : null}
+      {ready && !supported ? <span className="sub" style={{ color: 'var(--danger)' }}>이 브라우저엔 공유 기능이 없어요. 누르면 파일로 내려받아요.</span> : null}
 
       {logs.length > 0 && items.some((m) => m.blob) ? (
         <label className="sexbox" style={{ height: 40, fontSize: 13, fontWeight: 500 }}>
@@ -258,7 +263,12 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
           ))}
         </div>
       )}
-      {msg ? <span className="sub">{msg}</span> : null}
+      {msg ? <span className="sub" style={diag ? { color: 'var(--danger)', fontWeight: 700 } : undefined}>{msg}</span> : null}
+      {diag ? (
+        <div style={{ padding: '10px 12px', borderRadius: 12, background: 'var(--danger-light)', color: 'var(--danger)', fontSize: 12, lineHeight: 1.5, wordBreak: 'break-all' }}>
+          진단: {diag}
+        </div>
+      ) : null}
     </div>
   );
 }
