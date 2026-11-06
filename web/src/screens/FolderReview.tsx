@@ -8,7 +8,7 @@ import { PhotoEditor } from '../components/PhotoEditor';
 import { VideoEditor } from '../components/VideoEditor';
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
-import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKeptOn, listReviewedDogIds, listUnassignedKept, localDate, removeDogFromMedia, setFolderReviewed } from '../db/repo';
+import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKeptOn, listReviewedDogIds, listSendLogs, listUnassignedKept, localDate, removeDogFromMedia, setFolderReviewed } from '../db/repo';
 
 const UNASSIGNED = 'unassigned';
 
@@ -36,6 +36,13 @@ export function FolderReviewScreen() {
   const [editing, setEditing] = useState<MediaItem | null>(null);
   const { data: reviewedIds = [] } = useQuery({ queryKey: ['folder-reviews', date], queryFn: () => listReviewedDogIds(date) });
   const reviewed = !isUnassigned && reviewedIds.includes(dogId);
+  const { data: logs = [] } = useQuery({ queryKey: ['send-logs', date, dogId], queryFn: () => listSendLogs(date, dogId), enabled: !isUnassigned });
+  // 사진별 발송 회차 (처음 보낸 회차)
+  const sentRound = useMemo(() => {
+    const map = new Map<string, number>();
+    logs.forEach((l, i) => l.mediaIds.forEach((id) => { if (!map.has(id)) map.set(id, i + 1); }));
+    return map;
+  }, [logs]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sheet, setSheet] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -140,6 +147,14 @@ export function FolderReviewScreen() {
       />
       <main className="body" style={{ paddingBottom: 120 }}>
         {!isUnassigned ? <DateNav date={date} onChange={setDate} compact /> : null}
+        {logs.length > 0 ? (
+          <div className="card card--row" style={{ padding: '10px 14px' }}>
+            <span className="badge badge--mint">{logs.length}회 보냄</span>
+            <span className="sub" style={{ flex: 1 }}>
+              {logs.map((l, i) => `${i + 1}번째 ${new Date(l.sentAt).toTimeString().slice(0, 5)} (${l.mediaCount}개)`).join(' · ')}
+            </span>
+          </div>
+        ) : null}
         {items.length === 0 ? (
           <div className="card">
             <div className="title">{isUnassigned ? '미지정 사진이 없어요' : '아직 사진이 없어요'}</div>
@@ -156,7 +171,7 @@ export function FolderReviewScreen() {
           </div>
         ) : null}
         <div className="grid3">
-          {items.map((m, i) => <Cell key={m.id} m={m} dogs={dogs} selected={selected.has(m.id)} selecting={selecting} onTap={() => onCellTap(i)} />)}
+          {items.map((m, i) => <Cell key={m.id} m={m} dogs={dogs} selected={selected.has(m.id)} selecting={selecting} round={sentRound.get(m.id)} onTap={() => onCellTap(i)} />)}
         </div>
       </main>
 
@@ -194,14 +209,14 @@ export function FolderReviewScreen() {
   );
 }
 
-function Cell({ m, dogs, selected, selecting, onTap }: { m: MediaItem; dogs: Dog[]; selected: boolean; selecting: boolean; onTap: () => void }) {
+function Cell({ m, dogs, selected, selecting, round, onTap }: { m: MediaItem; dogs: Dog[]; selected: boolean; selecting: boolean; round?: number; onTap: () => void }) {
   const url = useObjectUrl(m.thumbBlob ?? m.blob);
   const names = m.dogIds.map((id) => dogs.find((d) => d.id === id)?.name ?? '?');
   return (
     <button type="button" className={`cell ${selected ? 'cell--on' : ''}`} onClick={onTap} aria-pressed={selecting ? selected : undefined}>
       {url ? <img src={url} alt="" /> : null}
       {m.kind === 'VIDEO' ? <span className="cell__dur">{Math.round((m.durationMs ?? 0) / 1000)}초</span> : null}
-      {m.purgedAt ? <span className="cell__tag">정리됨</span> : null}
+      {m.purgedAt ? <span className="cell__tag">정리됨</span> : round ? <span className="cell__tag cell__tag--sent">{round}회 보냄</span> : null}
       {selecting && !selected ? <span className="cell__ring" /> : null}
       {selected ? <span className="cell__check">✓</span> : null}
       {names.length > 1 ? <span className="cell__names">{names.length <= 2 ? names.join('·') : `${names[0]} 외 ${names.length - 1}`}</span> : null}

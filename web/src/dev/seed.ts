@@ -113,7 +113,10 @@ export async function seed(): Promise<string> {
 
   await setFolderReviewed(date, ids['보리'], true);
   await setFolderReviewed(date, ids['몽이'], true);
-  await markSent(date, ids['몽이'], 2);
+  {
+    const mongi = (await db.media.where('dogIds').equals(ids['몽이']).toArray()).filter((m) => m.reviewStatus === 'kept');
+    await markSent(date, ids['몽이'], mongi);
+  }
 
   // 어제 사진 (날짜 이동 확인용)
   const y = new Date(base); y.setDate(y.getDate() - 1);

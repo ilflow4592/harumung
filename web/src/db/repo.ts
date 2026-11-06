@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 
-import { db, type Dog, type GuardianContact, type MediaItem, type MediaKind, type Sex } from './db';
+import { db, type Dog, type GuardianContact, type MediaItem, type MediaKind, type SendLog, type Sex } from './db';
 
 const now = () => new Date().toISOString();
 
@@ -135,16 +135,34 @@ async function clearFolderReviewed(dogIds: string[]): Promise<void> {
 
 // ---------- 발송 ----------
 
+/** 그날 한 번이라도 보낸 강아지. */
 export async function listSentDogIds(date: string): Promise<string[]> {
   const rows = await db.sendLogs.where('date').equals(date).toArray();
-  return rows.map((r) => r.dogId);
+  return [...new Set(rows.map((r) => r.dogId))];
 }
 
-export async function markSent(date: string, dogId: string, mediaCount: number): Promise<void> {
-  await db.transaction('rw', db.sendLogs, async () => {
-    await db.sendLogs.where('[date+dogId]').equals([date, dogId]).delete();
-    await db.sendLogs.add({ id: ulid(), date, dogId, sentAt: now(), mediaCount });
+/** 그날 발송 이력 (오래된 순). dogId를 주면 그 아이만. */
+export async function listSendLogs(date: string, dogId?: string): Promise<SendLog[]> {
+  const rows = dogId
+    ? await db.sendLogs.where('[date+dogId]').equals([date, dogId]).toArray()
+    : await db.sendLogs.where('date').equals(date).toArray();
+  return rows.sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+}
+
+/** 발송 1건 기록. 보낸 미디어 id를 남겨 다음 발송 때 미발송만 고른다. */
+export async function markSent(date: string, dogId: string, items: Pick<MediaItem, 'id' | 'kind'>[]): Promise<string> {
+  const id = ulid();
+  await db.sendLogs.add({
+    id, date, dogId, sentAt: now(), mediaCount: items.length, mediaIds: items.map((m) => m.id),
+    photoCount: items.filter((m) => m.kind === 'PHOTO').length, videoCount: items.filter((m) => m.kind === 'VIDEO').length,
   });
+  return id;
+}
+
+/** 그날 그 아이에게 보낸 적 있는 미디어 id 집합. */
+export async function listSentMediaIds(date: string, dogId: string): Promise<Set<string>> {
+  const rows = await db.sendLogs.where('[date+dogId]').equals([date, dogId]).toArray();
+  return new Set(rows.flatMap((r) => r.mediaIds));
 }
 
 export async function listContacts(dogId: string): Promise<GuardianContact[]> {
@@ -353,7 +371,7 @@ export async function finishSessionReview(
 }
 
 export type FolderSummary = {
-  perDog: { dog: Dog; count: number; aCut: number; reviewed: boolean; sent: boolean }[];
+  perDog: { dog: Dog; count: number; aCut: number; reviewed: boolean; sent: boolean; unsent: number; sendCount: number }[];
   unassigned: number;
   /** 그날 저장된 사진·영상 수. 합사 사진은 한 번만 센다. */
   total: number;
@@ -368,10 +386,16 @@ export async function listFolders(date: string): Promise<FolderSummary> {
   const unassigned = kept.filter((m) => m.dogIds.length === 0).length;
   const dogs = await listActiveDogs();
   const reviewed = new Set(await listReviewedDogIds(date));
-  const sent = new Set(await listSentDogIds(date));
+  const logs = await listSendLogs(date);
   const perDog = dogs.map((dog) => {
     const mine = kept.filter((m) => m.dogIds.includes(dog.id));
-    return { dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length, reviewed: reviewed.has(dog.id), sent: sent.has(dog.id) };
+    const myLogs = logs.filter((l) => l.dogId === dog.id);
+    const sentIds = new Set(myLogs.flatMap((l) => l.mediaIds));
+    const unsent = mine.filter((m) => !sentIds.has(m.id)).length;
+    return {
+      dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length,
+      reviewed: reviewed.has(dog.id), sent: myLogs.length > 0, unsent, sendCount: myLogs.length,
+    };
   });
   return { perDog, unassigned, total: kept.length };
 }

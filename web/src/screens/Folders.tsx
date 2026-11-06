@@ -46,7 +46,7 @@ export function FoldersScreen() {
         <div className="stats">
           <div className="stat" style={{ background: 'var(--surface)' }}><span className="sub">촬영</span><b>{total}</b></div>
           <div className="stat" style={{ background: 'var(--pink-light)', color: 'var(--pink)' }}><span style={{ fontSize: 12 }}>미지정</span><b>{unassigned}</b></div>
-          <Link to={`/send?d=${date}`} className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>발송 준비 →</span><b>{perDog.filter((f) => f.reviewed && !f.sent).length}</b></Link>
+          <Link to={`/send?d=${date}`} className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>미발송 →</span><b>{perDog.filter((f) => f.unsent > 0).length}</b></Link>
         </div>
         <DateNav date={date} onChange={setDate} />
         <SearchBox value={query} onChange={setQuery} />
@@ -98,7 +98,10 @@ export function FoldersScreen() {
               </span>
               <span className="sub">사진 {f.count}장 · A컷 {f.aCut}장</span>
             </span>
-            <Chip label={f.sent ? '보냄' : f.reviewed ? '발송 준비' : f.count > 0 ? '검수 전' : '촬영 중'} tone={f.sent ? 'mint' : f.reviewed ? 'blue' : f.count > 0 ? 'pink' : 'gray'} />
+            <Chip
+              label={f.count === 0 ? '촬영 중' : f.unsent === 0 ? `${f.sendCount}회 보냄` : f.sendCount > 0 ? `미발송 ${f.unsent} · ${f.sendCount}회 보냄` : f.reviewed ? '발송 준비' : '검수 전'}
+              tone={f.count === 0 ? 'gray' : f.unsent === 0 ? 'mint' : f.reviewed ? 'blue' : 'pink'}
+            />
           </button>
         ))}
       </main>
@@ -106,9 +109,9 @@ export function FoldersScreen() {
       <footer className="footer footer--surface" style={{ borderTop: 0 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           {isToday ? <button type="button" className="btn" style={{ flex: 1.6 }} onClick={() => navigate('/camera')}>촬영 시작</button> : <button type="button" className="btn btn--outline" style={{ flex: 1.6 }} onClick={() => setDate(localDate())}>오늘로 돌아가기</button>}
-          {perDog.some((f) => f.reviewed && !f.sent) ? (
+          {perDog.some((f) => f.unsent > 0) ? (
             <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => navigate(`/send?d=${date}`)}>
-              보내기 ({perDog.filter((f) => f.reviewed && !f.sent).length})
+              보내기 ({perDog.filter((f) => f.unsent > 0).length})
             </button>
           ) : null}
         </div>

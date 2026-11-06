@@ -40,13 +40,17 @@ export interface FolderReview {
   reviewedAt: string;
 }
 
-/** 보호자에게 보낸 기록. 날짜·강아지별. 공유 시트를 끝까지 마쳤을 때만 기록. */
+/** 보호자에게 보낸 기록. 발송 1건 = 1행. 하루에 여러 번 보낼 수 있다. 공유 시트를 끝까지 마쳤을 때만 기록. */
 export interface SendLog {
   id: string;
   date: string;
   dogId: string;
   sentAt: string;
   mediaCount: number;
+  /** 그때 보낸 사진·영상 id. 미발송 계산과 이력 표시용. */
+  mediaIds: string[];
+  photoCount: number;
+  videoCount: number;
 }
 
 export interface ShootSession {
@@ -106,6 +110,16 @@ class HarumungDB extends Dexie {
     });
     this.version(4).stores({
       sendLogs: 'id, date, dogId, [date+dogId]',
+    });
+    // v5: 발송 1건당 1행 + 보낸 미디어 목록. 옛 행은 목록을 비워 둔다(미발송 계산에서 제외되지 않음).
+    this.version(5).stores({
+      sendLogs: 'id, date, dogId, [date+dogId], sentAt',
+    }).upgrade(async (tx) => {
+      await tx.table('sendLogs').toCollection().modify((r: Partial<SendLog>) => {
+        r.mediaIds ??= [];
+        r.photoCount ??= r.mediaCount ?? 0;
+        r.videoCount ??= 0;
+      });
     });
   }
 }

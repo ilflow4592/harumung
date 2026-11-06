@@ -59,6 +59,22 @@ export type PrepareProgress = { done: number; total: number; stage: 'photo' | 'v
  * 미디어를 File 객체로. 파일명은 강아지_날짜_순번.
  * compressPhoto면 사진 축소, compressVideoFlag면 영상 720p 재인코딩(느림, 순차).
  */
+export type ShareEntry = { file: File; item: MediaItem };
+
+/** 파일과 원본 항목을 짝지어 돌려준다. 발송 기록에 어떤 사진을 보냈는지 남기기 위해. */
+export async function toShareBundle(
+  items: MediaItem[],
+  dogName: string,
+  date: string,
+  compressPhoto: boolean,
+  compressVideoFlag: boolean,
+  onProgress?: (p: PrepareProgress) => void,
+): Promise<ShareEntry[]> {
+  const files = await toShareFiles(items, dogName, date, compressPhoto, compressVideoFlag, onProgress);
+  const withBlob = items.filter((m) => m.blob);
+  return files.map((file, i) => ({ file, item: withBlob[i] }));
+}
+
 export async function toShareFiles(
   items: MediaItem[],
   dogName: string,
@@ -171,18 +187,19 @@ export function downloadFiles(files: File[]): void {
 }
 
 /** 한 번에 넘기기엔 큰 묶음을 나눈다. iOS는 파일 수·용량이 크면 공유가 실패한다. */
-export function splitBatches(files: File[], maxFiles = 15, maxBytes = 150 * 1024 * 1024): File[][] {
-  const batches: File[][] = [];
-  let cur: File[] = [];
+export function splitBatches<T extends { file: File } | File>(entries: T[], maxFiles = 15, maxBytes = 150 * 1024 * 1024): T[][] {
+  const sizeOf = (e: T) => (e instanceof File ? e.size : e.file.size);
+  const batches: T[][] = [];
+  let cur: T[] = [];
   let bytes = 0;
-  for (const f of files) {
-    if (cur.length > 0 && (cur.length >= maxFiles || bytes + f.size > maxBytes)) {
+  for (const e of entries) {
+    if (cur.length > 0 && (cur.length >= maxFiles || bytes + sizeOf(e) > maxBytes)) {
       batches.push(cur);
       cur = [];
       bytes = 0;
     }
-    cur.push(f);
-    bytes += f.size;
+    cur.push(e);
+    bytes += sizeOf(e);
   }
   if (cur.length > 0) batches.push(cur);
   return batches;
