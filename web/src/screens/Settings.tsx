@@ -102,7 +102,7 @@ export function SettingsScreen() {
           <span className="sub">열기 ›</span>
         </Link>
         <Link to="/feedback?from=settings" className="card card--row" style={{ color: 'inherit' }} onClick={() => track('feedback_opened', { from: 'settings' })}>
-          <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flex: '0 0 auto' }}>💬</span>
+          <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--mint-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flex: '0 0 auto' }}>💬</span>
           <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span className="title">피드백 보내기</span>
             <span className="sub">오류·불편·제안을 사진과 함께{listSentFeedback().length ? ` · 보낸 피드백 ${listSentFeedback().length}건` : ''}</span>
@@ -154,7 +154,7 @@ export function SettingsScreen() {
         </section>
 
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div className="title">홈 화면 설치 {standalone ? <span className="badge badge--mint">설치됨</span> : <span className="badge badge--pink">미설치</span>}</div>
+          <div className="title">홈 화면 설치 {standalone ? <span className="badge badge--mint">설치됨</span> : <span className="badge badge--danger">미설치</span>}</div>
           {standalone ? (
             <span className="sub">앱으로 실행 중이에요. 브라우저가 사진을 임의로 지우지 않아요.</span>
           ) : isIOS ? (
@@ -169,7 +169,7 @@ export function SettingsScreen() {
               <li><b>홈 화면에 추가</b> 또는 <b>앱 설치</b>를 누르세요</li>
             </ol>
           )}
-          {!standalone ? <span className="sub" style={{ color: 'var(--pink)' }}>설치하지 않고 브라우저 탭으로만 쓰면 7일 동안 안 열었을 때 사진이 지워질 수 있어요.</span> : null}
+          {!standalone ? <span className="sub" style={{ color: 'var(--danger)' }}>설치하지 않고 브라우저 탭으로만 쓰면 7일 동안 안 열었을 때 사진이 지워질 수 있어요.</span> : null}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="sub" style={{ flex: 1 }}>저장소 보호: {persisted === true ? '켜짐' : persisted === false ? '꺼짐' : '브라우저 미지원'}</span>
             {persisted !== true ? <button type="button" className="btn btn--small btn--outline" onClick={persist}>보호 요청</button> : null}
@@ -193,7 +193,7 @@ export function SettingsScreen() {
               <tr><td>데이터 위치</td><td></td><td>이 폰 안에만</td></tr>
             </tbody>
           </table>
-          <button type="button" className="btn btn--ghost" style={{ color: 'var(--pink)' }} onClick={wipe}>전체 초기화 (테스트용)</button>
+          <button type="button" className="btn btn--ghost" style={{ color: 'var(--danger)' }} onClick={wipe}>전체 초기화 (테스트용)</button>
         </section>
 
         {msg ? <span className="sub">{msg}</span> : null}

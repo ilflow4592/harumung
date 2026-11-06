@@ -162,7 +162,7 @@ export function FolderReviewScreen() {
         {!isUnassigned ? <DateNav date={date} onChange={setDate} compact /> : null}
         {logs.length > 0 ? (
           <div className="card card--row" style={{ padding: '10px 14px' }}>
-            <span className="badge badge--mint">{logs.length}회 보냄</span>
+            <span className="badge badge--done">{logs.length}회 보냄</span>
             <span className="sub" style={{ flex: 1 }}>
               {logs.map((l, i) => `${i + 1}번째 ${new Date(l.sentAt).toTimeString().slice(0, 5)} (${l.mediaCount}개)`).join(' · ')}
             </span>
@@ -177,10 +177,10 @@ export function FolderReviewScreen() {
           <span className="sub">{isUnassigned ? '사진을 고른 뒤 아래에서 강아지를 정하세요' : selecting ? '사진을 고르면 다른 아이 추가·폴더에서 빼기·삭제를 할 수 있어요' : '탭하면 크게 보여요. 오른쪽 위 선택으로 옮기기·삭제'} · {items.length}개</span>
         )}
         {reviewed ? (
-          <div className="card card--row" style={{ borderColor: 'var(--mint)', background: 'var(--mint-light)', color: 'var(--mint)' }}>
-            <span className="check check--on">✓</span>
+          <div className="card card--row" style={{ borderColor: 'var(--done)', background: 'var(--done-light)', color: 'var(--done)' }}>
+            <span className="check check--on" style={{ background: 'var(--done)', borderColor: 'var(--done)' }}>✓</span>
             <span style={{ flex: 1, fontWeight: 700 }}>오늘 사진 검수 완료</span>
-            {date === today ? <span className="sub" style={{ color: 'var(--mint)' }}>새 사진이 들어오면 풀려요</span> : null}
+            {date === today ? <span className="sub" style={{ color: 'var(--done)' }}>새 사진이 들어오면 풀려요</span> : null}
           </div>
         ) : null}
         <div className="grid3">
@@ -198,7 +198,7 @@ export function FolderReviewScreen() {
             <button type="button" className="btn" style={{ flex: 1.6 }} disabled={busy} onClick={() => setSheet(true)}>
               {isUnassigned ? `강아지 배정 (${selected.size})` : `옮기기·추가 (${selected.size})`}
             </button>
-            <button type="button" className="btn btn--outline" style={{ flex: 1, borderColor: 'var(--pink)', color: 'var(--pink)' }} disabled={busy} onClick={remove}>
+            <button type="button" className="btn btn--outline" style={{ flex: 1, borderColor: 'var(--danger)', color: 'var(--danger)' }} disabled={busy} onClick={remove}>
               삭제 ({selected.size})
             </button>
           </div>
@@ -262,7 +262,7 @@ function AssignSheet({ dogs, folderDog, count, busy, onPick, onRemove, onClose }
         <div className="title">{count}장을 누구에게?</div>
         <span className="sub">여러 마리 체크하면 합사 사진으로 모두에게 들어가요</span>
         {folderDog ? (
-          <button type="button" className="btn btn--ghost" disabled={busy} onClick={onRemove} style={{ color: 'var(--pink)' }}>
+          <button type="button" className="btn btn--ghost" disabled={busy} onClick={onRemove} style={{ color: 'var(--danger)' }}>
             {folderDog.name} 폴더에서 빼기 (미지정으로)
           </button>
         ) : null}

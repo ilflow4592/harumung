@@ -128,7 +128,7 @@ export function DogFormScreen() {
             <button
               type="button"
               className="btn btn--ghost btn--small"
-              style={{ color: 'var(--pink)', borderColor: 'var(--pink-mid)' }}
+              style={{ color: 'var(--danger)', borderColor: 'var(--danger-light)' }}
               onClick={clearPhoto}
             >
               사진 지우기
@@ -178,7 +178,7 @@ export function DogFormScreen() {
           {showPhone2 ? (
             <input className="input" type="tel" inputMode="tel" value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="두 번째 연락처" />
           ) : (
-            <button type="button" className="btn btn--ghost btn--small" style={{ alignSelf: 'flex-start', border: 0, color: 'var(--blue)', fontWeight: 700 }} onClick={() => setShowPhone2(true)}>+ 연락처 하나 더 (최대 2개)</button>
+            <button type="button" className="btn btn--ghost btn--small" style={{ alignSelf: 'flex-start', border: 0, color: 'var(--mint)', fontWeight: 700 }} onClick={() => setShowPhone2(true)}>+ 연락처 하나 더 (최대 2개)</button>
           )}
           <span className="sub">하루멍 링크를 알림톡·문자로 보내는 데만 써요</span>
         </div>
@@ -190,7 +190,7 @@ export function DogFormScreen() {
       </main>
       {editing ? (
         <div className="body" style={{ paddingTop: 0, gap: 8 }}>
-          <button type="button" className="btn btn--ghost" style={{ color: 'var(--pink)' }} onClick={retire}>퇴원 처리 (목록에서 숨김)</button>
+          <button type="button" className="btn btn--ghost" style={{ color: 'var(--danger)' }} onClick={retire}>퇴원 처리 (목록에서 숨김)</button>
           <button type="button" className="btn btn--ghost btn--small" style={{ alignSelf: 'center', color: 'var(--text-2)' }} onClick={remove}>완전 삭제 (사진이 없을 때만)</button>
         </div>
       ) : null}

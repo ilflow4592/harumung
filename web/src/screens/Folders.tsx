@@ -53,8 +53,8 @@ export function FoldersScreen() {
         </div>
         <div className="stats">
           <div className="stat" style={{ background: 'var(--surface)' }}><span className="sub">촬영</span><b>{total}</b></div>
-          <div className="stat" style={{ background: 'var(--pink-light)', color: 'var(--pink)' }}><span style={{ fontSize: 12 }}>미지정</span><b>{unassigned}</b></div>
-          <Link to={`/send?d=${date}`} className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>미발송 →</span><b>{perDog.filter((f) => f.unsent > 0).length}</b></Link>
+          <div className="stat" style={{ background: 'var(--mint-light)', color: 'var(--mint)' }}><span style={{ fontSize: 12 }}>미지정</span><b>{unassigned}</b></div>
+          <Link to={`/send?d=${date}`} className="stat" style={{ background: 'var(--brand)', color: 'var(--text)' }}><span style={{ fontSize: 12 }}>미발송 →</span><b>{perDog.filter((f) => f.unsent > 0).length}</b></Link>
         </div>
         <DateNav date={date} onChange={setDate} />
         <SearchBox value={query} onChange={(q) => { if (q.trim().length === 1 && !query.trim()) track('search_used', { screen: 'folders' }); setQuery(q); }} />
@@ -79,12 +79,12 @@ export function FoldersScreen() {
           <Chip label={hasAttendance ? '수정' : '체크하기'} tone="mint" />
         </Link>
         {unassigned > 0 && !query ? (
-          <Link to={`/folders/unassigned?d=${date}`} className="card card--row" style={{ borderColor: 'var(--pink-mid)', borderWidth: 1.5, color: 'inherit' }}>
+          <Link to={`/folders/unassigned?d=${date}`} className="card card--row" style={{ borderColor: 'var(--mint-mid)', borderWidth: 1.5, color: 'inherit' }}>
             <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <span className="title">미지정 사진 {unassigned}장</span>
               <span className="sub">강아지를 정하거나 지워 주세요</span>
             </span>
-            <Chip label="배정하기" tone="pink" />
+            <Chip label="배정하기" tone="orange" />
           </Link>
         ) : null}
         {perDog.length === 0 ? (
@@ -120,7 +120,7 @@ export function FoldersScreen() {
             </span>
             <Chip
               label={f.count === 0 ? '촬영 중' : f.unsent === 0 ? `${f.sendCount}회 보냄` : f.sendCount > 0 ? `미발송 ${f.unsent} · ${f.sendCount}회 보냄` : f.reviewed ? '검수 완료' : '검수 전'}
-              tone={f.count === 0 ? 'gray' : f.unsent === 0 ? 'mint' : f.reviewed ? 'blue' : 'pink'}
+              tone={f.count === 0 ? 'gray' : f.unsent === 0 ? 'done' : 'orange'}
             />
           </button>
         ))}

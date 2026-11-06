@@ -128,7 +128,7 @@ export function SessionReviewScreen() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {s.dog ? <DogAvatar name={s.dog.name} sex={s.dog.sex} thumb={s.dog.thumbBlob} size={32} /> : <span className="avatar" style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--gray)' }} />}
                   <span className="title">{s.dog?.name ?? '미지정'}</span>
-                  <span className="sub" style={{ flex: 1, color: s.dog ? undefined : 'var(--pink)', fontWeight: s.dog ? 400 : 700 }}>
+                  <span className="sub" style={{ flex: 1, color: s.dog ? undefined : 'var(--mint)', fontWeight: s.dog ? 400 : 700 }}>
                     {s.media.length}개 · 삭제 {s.media.filter((m) => deleted.has(m.id)).length}
                   </span>
                   {s.dog ? (
@@ -189,7 +189,7 @@ export function SessionReviewScreen() {
       <footer className="footer footer--surface">
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
           <b>
-            가져가기 {items.length - deleted.size}개 · <span style={{ color: 'var(--pink)' }}>삭제 {deleted.size}개</span>
+            가져가기 {items.length - deleted.size}개 · <span style={{ color: 'var(--danger)' }}>삭제 {deleted.size}개</span>
             {unassignedCount > 0 ? <span style={{ color: 'var(--text-2)', fontWeight: 500 }}> · 미지정 {unassignedCount}</span> : null}
           </b>
           <span className="sub">{Object.keys(assign).length > 0 ? `배정 변경 ${Object.keys(assign).length}장` : '삭제는 되돌릴 수 없어요'}</span>

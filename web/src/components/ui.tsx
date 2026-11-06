@@ -6,7 +6,7 @@ export function SexBadge({ sex }: { sex: Sex }) {
   return <span className={`badge ${sex === 'MALE' ? 'badge--blue' : 'badge--pink'}`}>{sex === 'MALE' ? '남아' : '여아'}</span>;
 }
 
-export function Chip({ label, tone = 'gray' }: { label: string; tone?: 'gray' | 'mint' | 'blue' | 'pink' }) {
+export function Chip({ label, tone = 'gray' }: { label: string; tone?: 'gray' | 'mint' | 'blue' | 'pink' | 'orange' | 'done' | 'danger' }) {
   return <span className={`badge badge--${tone}`}>{label}</span>;
 }
 

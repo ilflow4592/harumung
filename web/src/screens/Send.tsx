@@ -210,7 +210,7 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
           <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span className="title">{dog.name}</span>
             <SexBadge sex={dog.sex} />
-            {logs.length > 0 ? <span className="badge badge--mint">{logs.length}회 보냄</span> : null}
+            {logs.length > 0 ? <span className="badge badge--done">{logs.length}회 보냄</span> : null}
             {!reviewed && items.length > 0 ? <span className="badge badge--gray">검수 전</span> : null}
           </span>
           <span className="sub">
@@ -234,8 +234,8 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
       {videos.length > 0 ? <MediaLine label="영상" count={videos.length} unit="개" items={videos} onOpen={openFolder} /> : null}
       {target.length === 0 && items.length > 0 ? <span className="sub">오늘 사진은 모두 보냈어요</span> : null}
       {items.length === 0 ? <span className="sub">저장된 사진이 없어요</span> : null}
-      {items.length > 0 && items.some((m) => !m.blob) ? <span className="sub" style={{ color: 'var(--pink)' }}>원본이 정리된 사진은 보낼 수 없어요</span> : null}
-      {ready && !supported ? <span className="sub" style={{ color: 'var(--pink)' }}>이 브라우저는 파일 공유를 지원하지 않아요. 누르면 파일로 내려받아요.</span> : null}
+      {items.length > 0 && items.some((m) => !m.blob) ? <span className="sub" style={{ color: 'var(--danger)' }}>원본이 정리된 사진은 보낼 수 없어요</span> : null}
+      {ready && !supported ? <span className="sub" style={{ color: 'var(--danger)' }}>이 브라우저는 파일 공유를 지원하지 않아요. 누르면 파일로 내려받아요.</span> : null}
 
       {logs.length > 0 && items.some((m) => m.blob) ? (
         <label className="sexbox" style={{ height: 40, fontSize: 13, fontWeight: 500 }}>
@@ -269,7 +269,7 @@ function HistoryRow({ n, log, items }: { n: number; log: SendLog; items: MediaIt
   return (
     <div className="history">
       <div className="history__head">
-        <span className="badge badge--mint">{n}번째</span>
+        <span className="badge badge--done">{n}번째</span>
         <b>{timeLabel(log.sentAt)}</b>
         <span className="sub">사진 {log.photoCount}장{log.videoCount ? ` · 영상 ${log.videoCount}개` : ''}</span>
       </div>
