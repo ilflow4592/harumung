@@ -184,6 +184,7 @@ function SendRow({ dog, date, sent, compressPhoto, compressVideo }: { dog: Dog; 
         <MediaLine label="영상" count={videos.length} unit="개" bytes={progress ? null : videoBytes} items={videos} onOpen={openFolder} />
       ) : null}
       {items.length === 0 ? <span className="sub">오늘 저장된 사진이 없어요</span> : null}
+      {items.length > 0 && items.every((m) => !m.blob) ? <span className="sub" style={{ color: 'var(--pink)' }}>원본이 정리돼 다시 보낼 수 없어요</span> : null}
       {items.length > 0 && !supported && ready ? <span className="sub" style={{ color: 'var(--pink)' }}>이 브라우저는 파일 공유를 지원하지 않아요. 누르면 파일로 내려받아요.</span> : null}
 
       {batches.length <= 1 ? (

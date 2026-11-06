@@ -1,4 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+
+import { runAutoPurge } from './lib/autoPurge';
 
 import { AttendanceScreen } from './screens/Attendance';
 import { CameraScreen } from './screens/Camera';
@@ -11,6 +15,11 @@ import { SessionReviewScreen } from './screens/SessionReview';
 import { SettingsScreen } from './screens/Settings';
 
 export default function App() {
+  const qc = useQueryClient();
+  // 앱을 열 때 하루 한 번, 보낸 지 N일 지난 원본 정리
+  useEffect(() => {
+    runAutoPurge().then((r) => { if (r && r.count > 0) qc.invalidateQueries(); }).catch(() => undefined);
+  }, [qc]);
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/folders" replace />} />

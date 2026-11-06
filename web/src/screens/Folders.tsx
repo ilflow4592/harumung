@@ -44,7 +44,10 @@ export function FoldersScreen() {
             <div className="sub" style={{ fontWeight: 500 }}>{todayLabel()}</div>
             <h1 style={{ fontSize: 22 }}>오늘 폴더</h1>
           </div>
-          <Link to="/dogs/new" className="icon-btn icon-btn--mint" aria-label="강아지 등록">+</Link>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <Link to="/settings" className="icon-btn" aria-label="설정" style={{ fontSize: 22 }}>⚙</Link>
+            <Link to="/dogs/new" className="icon-btn icon-btn--mint" aria-label="강아지 등록">+</Link>
+          </div>
         </div>
         <div className="stats">
           <div className="stat" style={{ background: 'var(--surface)' }}><span className="sub">촬영</span><b>{total}</b></div>

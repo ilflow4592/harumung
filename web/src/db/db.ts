@@ -66,6 +66,8 @@ export interface MediaItem {
   thumbBlob: Blob | null;
   /** 보내기용 720p 변환본. 한 번 변환하면 여기 저장해 다시 변환하지 않는다. */
   compressedBlob?: Blob | null;
+  /** 저장공간 정리로 원본을 지운 시각. 썸네일만 남는다. */
+  purgedAt?: string | null;
   mimeType: string;
   durationMs: number | null;
   sizeBytes: number | null;

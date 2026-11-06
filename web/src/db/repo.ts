@@ -117,6 +117,86 @@ export async function saveCompressedVideo(id: string, blob: Blob): Promise<void>
   await db.media.update(id, { compressedBlob: blob });
 }
 
+// ---------- 저장공간 ----------
+
+export type StorageStats = {
+  photoBytes: number; photoCount: number;
+  videoBytes: number; videoCount: number;
+  compressedBytes: number;
+  thumbBytes: number;
+  purgedCount: number;
+  trashCount: number;
+  totalBytes: number;
+  quotaBytes: number | null;
+  usageBytes: number | null;
+};
+
+export async function storageStats(): Promise<StorageStats> {
+  const rows = await db.media.toArray();
+  const st: StorageStats = { photoBytes: 0, photoCount: 0, videoBytes: 0, videoCount: 0, compressedBytes: 0, thumbBytes: 0, purgedCount: 0, trashCount: 0, totalBytes: 0, quotaBytes: null, usageBytes: null };
+  for (const m of rows) {
+    if (m.reviewStatus === 'deleted') { st.trashCount++; continue; }
+    if (m.purgedAt) st.purgedCount++;
+    const size = m.blob?.size ?? 0;
+    if (m.kind === 'PHOTO') { st.photoBytes += size; if (size) st.photoCount++; }
+    else { st.videoBytes += size; if (size) st.videoCount++; }
+    st.compressedBytes += m.compressedBlob?.size ?? 0;
+    st.thumbBytes += m.thumbBlob?.size ?? 0;
+  }
+  st.totalBytes = st.photoBytes + st.videoBytes + st.compressedBytes + st.thumbBytes;
+  try {
+    const est = await navigator.storage?.estimate?.();
+    st.quotaBytes = est?.quota ?? null;
+    st.usageBytes = est?.usage ?? null;
+  } catch { /* 미지원 */ }
+  return st;
+}
+
+/** 보낸 지 days일 넘은 사진·영상의 원본 후보. 모든 지정 강아지에게 그 날짜 발송 기록이 있어야 한다. 미지정·미발송은 제외. */
+export async function listPurgeCandidates(days: number): Promise<MediaItem[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const kept = await db.media.where('reviewStatus').equals('kept').toArray();
+  const logs = await db.sendLogs.toArray();
+  const sentKeys = new Set(logs.map((l) => `${l.date}|${l.dogId}`));
+  return kept.filter((m) => {
+    if (m.purgedAt || (!m.blob && !m.compressedBlob)) return false;
+    if (m.dogIds.length === 0) return false;
+    const date = localDate(new Date(m.takenAt));
+    if (!m.dogIds.every((d) => sentKeys.has(`${date}|${d}`))) return false;
+    // 보낸 날짜 기준이 아니라 촬영 날짜 기준. 보낸 날은 촬영 당일이 대부분.
+    return new Date(m.takenAt) < cutoff;
+  });
+}
+
+/** 원본·변환본을 지우고 썸네일만 남긴다. 되돌릴 수 없다. */
+export async function purgeOriginals(ids: string[]): Promise<number> {
+  let freed = 0;
+  await db.transaction('rw', db.media, async () => {
+    for (const id of ids) {
+      const m = await db.media.get(id);
+      if (!m) continue;
+      freed += (m.blob?.size ?? 0) + (m.compressedBlob?.size ?? 0);
+      await db.media.update(id, { blob: null, compressedBlob: null, purgedAt: now() });
+    }
+  });
+  return freed;
+}
+
+/** 삭제 처리된 레코드(원본은 이미 비움)와 닫힌 세션을 완전히 지운다. */
+export async function emptyTrash(): Promise<number> {
+  const ids = (await db.media.where('reviewStatus').equals('deleted').primaryKeys()) as string[];
+  await db.media.bulkDelete(ids);
+  return ids.length;
+}
+
+/** 전체 초기화. 테스트 기기용. */
+export async function wipeAll(): Promise<void> {
+  await db.transaction('rw', db.tables, async () => {
+    for (const t of db.tables) await t.clear();
+  });
+}
+
 // ---------- 세션 ----------
 
 export async function getOrCreateOpenSession(): Promise<string> {
