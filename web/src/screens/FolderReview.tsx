@@ -166,7 +166,7 @@ export function FolderReviewScreen() {
         {reviewed ? (
           <div className="card card--row" style={{ borderColor: 'var(--mint)', background: 'var(--mint-light)', color: 'var(--mint)' }}>
             <span className="check check--on">✓</span>
-            <span style={{ flex: 1, fontWeight: 700 }}>검수 완료 · 발송 준비됐어요</span>
+            <span style={{ flex: 1, fontWeight: 700 }}>오늘 사진 검수 완료</span>
             {date === today ? <span className="sub" style={{ color: 'var(--mint)' }}>새 사진이 들어오면 풀려요</span> : null}
           </div>
         ) : null}
@@ -198,7 +198,7 @@ export function FolderReviewScreen() {
               <button type="button" className="btn" style={{ flex: 1.4 }} onClick={() => navigate(`/send?d=${date}`)}>보호자에게 보내기</button>
             </div>
           ) : (
-            <button type="button" className="btn" disabled={busy} onClick={toggleReviewed}>검수 완료 · 발송 준비</button>
+            <button type="button" className="btn" disabled={busy} onClick={toggleReviewed}>검수 완료</button>
           )}
         </footer>
       ) : null}

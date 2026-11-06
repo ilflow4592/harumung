@@ -99,7 +99,7 @@ export function FoldersScreen() {
               <span className="sub">사진 {f.count}장 · A컷 {f.aCut}장</span>
             </span>
             <Chip
-              label={f.count === 0 ? '촬영 중' : f.unsent === 0 ? `${f.sendCount}회 보냄` : f.sendCount > 0 ? `미발송 ${f.unsent} · ${f.sendCount}회 보냄` : f.reviewed ? '발송 준비' : '검수 전'}
+              label={f.count === 0 ? '촬영 중' : f.unsent === 0 ? `${f.sendCount}회 보냄` : f.sendCount > 0 ? `미발송 ${f.unsent} · ${f.sendCount}회 보냄` : f.reviewed ? '검수 완료' : '검수 전'}
               tone={f.count === 0 ? 'gray' : f.unsent === 0 ? 'mint' : f.reviewed ? 'blue' : 'pink'}
             />
           </button>
