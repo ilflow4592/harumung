@@ -193,6 +193,7 @@ export function SettingsScreen() {
               <tr><td>데이터 위치</td><td></td><td>이 폰 안에만</td></tr>
             </tbody>
           </table>
+          <span className="sub">테스트 기간에는 앱을 어떻게 쓰는지 익명 사용 통계(화면 이동, 버튼 사용, 화면 녹화)를 수집해요. 강아지 사진, 보호자 연락처, 입력한 글자는 수집하지 않아요.</span>
           <button type="button" className="btn btn--ghost" style={{ color: 'var(--pink)' }} onClick={wipe}>전체 초기화 (테스트용)</button>
         </section>
 
