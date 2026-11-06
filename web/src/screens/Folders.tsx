@@ -44,6 +44,7 @@ export function FoldersScreen() {
             <h1 style={{ fontSize: 22 }}>{relativeLabel(date) ?? '지난'} 폴더</h1>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
+            <Link to="/feedback?from=folders" className="icon-btn" aria-label="피드백 보내기" style={{ fontSize: 18 }} onClick={() => track('feedback_opened', { from: 'folders' })}>💬</Link>
             <Link to="/guide" className="icon-btn" aria-label="사용 안내" style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)' }} onClick={() => track('guide_opened', { from: 'folders' })}>?</Link>
             <Link to="/settings" className="icon-btn" aria-label="설정" style={{ fontSize: 22 }}>⚙</Link>
             <Link to="/dogs" className="icon-btn icon-btn--mint" aria-label="강아지 관리" style={{ fontSize: 13, width: 'auto', padding: '0 12px' }}>강아지</Link>

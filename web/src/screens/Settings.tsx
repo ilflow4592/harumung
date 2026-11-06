@@ -6,6 +6,7 @@ import { TopBar } from '../components/ui';
 import { emptyTrash, listActiveDogs, listPurgeCandidates, purgeOriginals, storageStats, wipeAll } from '../db/repo';
 import { PURGE_OPTIONS, getPurgeDays, isIOS, isStandalone, requestPersistentStorage, setPurgeDays } from '../lib/settings';
 import { getPartner, setPartner, track } from '../lib/analytics';
+import { listSentFeedback } from '../lib/feedbackSend';
 import { formatBytes } from '../lib/share';
 
 /** 설정: 저장공간·자동 정리·홈 화면 설치·앱 정보. 서버 없는 동안 폰 저장공간 관리가 핵심. */
@@ -97,6 +98,14 @@ export function SettingsScreen() {
           <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span className="title">사용 안내</span>
             <span className="sub">등록 → 등원 체크 → 촬영 → 검수 → 보내기, 화면 그림과 함께</span>
+          </span>
+          <span className="sub">열기 ›</span>
+        </Link>
+        <Link to="/feedback?from=settings" className="card card--row" style={{ color: 'inherit' }} onClick={() => track('feedback_opened', { from: 'settings' })}>
+          <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flex: '0 0 auto' }}>💬</span>
+          <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span className="title">피드백 보내기</span>
+            <span className="sub">오류·불편·제안을 사진과 함께{listSentFeedback().length ? ` · 보낸 피드백 ${listSentFeedback().length}건` : ''}</span>
           </span>
           <span className="sub">열기 ›</span>
         </Link>

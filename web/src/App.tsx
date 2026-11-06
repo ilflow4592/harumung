@@ -8,6 +8,7 @@ import { runAutoPurge } from './lib/autoPurge';
 import { AttendanceScreen } from './screens/Attendance';
 import { CameraScreen } from './screens/Camera';
 import { DogFormScreen } from './screens/DogForm';
+import { FeedbackScreen } from './screens/Feedback';
 import { DogsScreen } from './screens/Dogs';
 import { FolderReviewScreen } from './screens/FolderReview';
 import { FoldersScreen } from './screens/Folders';
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="/send" element={<SendScreen />} />
       <Route path="/settings" element={<SettingsScreen />} />
       <Route path="/guide" element={<GuideScreen />} />
+      <Route path="/feedback" element={<FeedbackScreen />} />
       <Route path="*" element={<Navigate to="/folders" replace />} />
     </Routes>
   );
