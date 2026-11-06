@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 
 import type { Sex } from '../db/db';
 
@@ -66,24 +65,6 @@ export function TopBar({ title, onBack, right }: { title: string; onBack?: () =>
 }
 
 /** 홈 화면 추가 안내. 설치된 상태(standalone)면 숨긴다. */
-const GUIDE_SEEN_KEY = 'harumung.guideSeen';
-
-/** 처음 설치한 폰에만 한 번 보이는 사용 안내 배너. 닫으면 다시 안 뜬다. */
-export function GuideBanner() {
-  const [seen, setSeen] = useState<boolean>(() => { try { return localStorage.getItem(GUIDE_SEEN_KEY) === '1'; } catch { return false; } });
-  if (seen) return null;
-  const dismiss = () => { try { localStorage.setItem(GUIDE_SEEN_KEY, '1'); } catch { /* 저장 못 하면 다음에 또 보임 */ } setSeen(true); };
-  return (
-    <div className="guide-banner">
-      <span style={{ flex: 1 }}>
-        <b>처음이세요?</b> 등록부터 보내기까지 한 번에 따라가는 안내가 있어요.
-      </span>
-      <Link to="/guide" className="btn btn--small" style={{ background: 'var(--mint)', borderColor: 'var(--mint)', color: 'var(--white)' }} onClick={dismiss}>사용 안내</Link>
-      <button type="button" className="icon-btn" aria-label="닫기" style={{ width: 32, height: 32, fontSize: 16 }} onClick={dismiss}>✕</button>
-    </div>
-  );
-}
-
 export function InstallHint() {
   const standalone =
     window.matchMedia('(display-mode: standalone)').matches ||

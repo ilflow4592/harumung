@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { DogSheet } from '../components/DogSheet';
 import { matchesName, SearchBox } from '../components/SearchBox';
-import { Chip, DogAvatar, GuideBanner, InstallHint, SexBadge } from '../components/ui';
+import { Chip, DogAvatar, InstallHint, SexBadge } from '../components/ui';
 import type { Dog } from '../db/db';
 import { DateNav, useDateParam } from '../components/DateNav';
 import { listAttendedDogIds, listFolders } from '../db/repo';
@@ -38,6 +38,7 @@ export function FoldersScreen() {
             <h1 style={{ fontSize: 22 }}>{relativeLabel(date) ?? '지난'} 폴더</h1>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
+            <Link to="/guide" className="icon-btn" aria-label="사용 안내" style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)' }}>?</Link>
             <Link to="/settings" className="icon-btn" aria-label="설정" style={{ fontSize: 22 }}>⚙</Link>
             <Link to="/dogs" className="icon-btn icon-btn--mint" aria-label="강아지 관리" style={{ fontSize: 13, width: 'auto', padding: '0 12px' }}>강아지</Link>
           </div>
@@ -52,7 +53,6 @@ export function FoldersScreen() {
       </header>
 
       <main className="body" style={{ paddingBottom: 100 }}>
-        <GuideBanner />
         <InstallHint />
         <Link to={`/attendance?d=${date}`} className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }}>
           <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
