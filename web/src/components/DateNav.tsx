@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { dateLabelKo, isValidDate, localDate, relativeLabel, shiftDate } from '../lib/dates';
@@ -16,7 +17,7 @@ export function useDateParam(): [string, (d: string) => void] {
 }
 
 /** ‹ 11월 6일 금요일 › 와 "오늘" 복귀. 미래로는 못 간다. */
-export function DateNav({ date, onChange, compact = false }: { date: string; onChange: (d: string) => void; compact?: boolean }) {
+export function DateNav({ date, onChange, compact = false, right }: { date: string; onChange: (d: string) => void; compact?: boolean; right?: ReactNode }) {
   const today = localDate();
   const rel = relativeLabel(date);
   return (
@@ -26,6 +27,7 @@ export function DateNav({ date, onChange, compact = false }: { date: string; onC
         {rel ? <b>{rel}</b> : null}
         <span className={rel ? 'sub' : ''} style={{ fontWeight: rel ? 500 : 700 }}>{dateLabelKo(date, !compact)}</span>
       </span>
+      {right}
       <button type="button" className="datenav__arrow" aria-label="다음 날" disabled={date >= today} onClick={() => onChange(shiftDate(date, 1))}>›</button>
       {date !== today ? <button type="button" className="btn btn--small btn--outline" onClick={() => onChange(today)}>오늘</button> : null}
     </div>

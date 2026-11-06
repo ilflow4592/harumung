@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import type { Sex } from '../db/db';
 
@@ -65,12 +66,25 @@ export function TopBar({ title, onBack, right }: { title: string; onBack?: () =>
 }
 
 /** 홈 화면 추가 안내. 설치된 상태(standalone)면 숨긴다. */
-export function InstallHint() {
+const INSTALL_SEEN_KEY = 'harumung.installHintSeen';
+
+/** 홈 화면 설치 안내. compact면 한 줄 + 닫기(한 번 닫으면 다시 안 뜸, 설정에 안내가 남아 있다). */
+export function InstallHint({ compact = false }: { compact?: boolean }) {
   const standalone =
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  if (standalone) return null;
+  const [seen, setSeen] = useState<boolean>(() => { try { return localStorage.getItem(INSTALL_SEEN_KEY) === '1'; } catch { return false; } });
+  if (standalone || (compact && seen)) return null;
   const ios = /iPhone|iPad/.test(navigator.userAgent);
+  if (compact) {
+    const dismiss = () => { try { localStorage.setItem(INSTALL_SEEN_KEY, '1'); } catch { /* 무시 */ } setSeen(true); };
+    return (
+      <div className="install install--compact">
+        <span style={{ flex: 1 }}>홈 화면에 추가하면 앱처럼 열려요 · <Link to="/settings" style={{ fontWeight: 700, color: 'inherit' }}>방법 보기</Link></span>
+        <button type="button" className="icon-btn" aria-label="닫기" style={{ width: 28, height: 28, fontSize: 14, color: 'inherit' }} onClick={dismiss}>✕</button>
+      </div>
+    );
+  }
   return (
     <div className="install">
       {ios
