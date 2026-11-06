@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TopBar } from '../components/ui';
 import { emptyTrash, listActiveDogs, listPurgeCandidates, purgeOriginals, storageStats, wipeAll } from '../db/repo';
 import { PURGE_OPTIONS, getPurgeDays, isIOS, isStandalone, requestPersistentStorage, setPurgeDays } from '../lib/settings';
-import { getPartner, setPartner, track } from '../lib/analytics';
+import { BUILD_ID, getPartner, setPartner, track } from '../lib/analytics';
 import { listSentFeedback } from '../lib/feedbackSend';
 import { formatBytes } from '../lib/share';
 
@@ -188,7 +188,8 @@ export function SettingsScreen() {
           </div>
           <table className="kv">
             <tbody>
-              <tr><td>버전</td><td></td><td>0.1 (테스트)</td></tr>
+              <tr><td>버전</td><td></td><td>0.1 · 빌드 {BUILD_ID}</td></tr>
+              <tr><td>유치원 코드 (현재)</td><td></td><td>{getPartner() ?? '없음'}</td></tr>
               <tr><td>강아지</td><td></td><td>{dogs.length}마리</td></tr>
               <tr><td>데이터 위치</td><td></td><td>이 폰 안에만</td></tr>
             </tbody>

@@ -8,6 +8,8 @@ import posthog from 'posthog-js';
 import { isIOS, isStandalone } from './settings';
 
 export const APP_VERSION = '0.1';
+/** 배포 빌드 번호 (워크플로 run 번호-커밋). 로컬 개발은 dev. */
+export const BUILD_ID = ((import.meta.env.VITE_BUILD as string | undefined) || 'dev').slice(0, 12);
 let enabled = false;
 
 export function initAnalytics(): void {
@@ -27,6 +29,7 @@ export function initAnalytics(): void {
     loaded: () => {
       posthog.register({
         app_version: APP_VERSION,
+        build: BUILD_ID,
         platform: isIOS ? 'ios' : /Android/i.test(navigator.userAgent) ? 'android' : 'other',
         standalone: isStandalone(),
         dev: import.meta.env.DEV,
