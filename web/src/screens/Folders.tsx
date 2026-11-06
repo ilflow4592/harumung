@@ -88,10 +88,13 @@ export function FoldersScreen() {
           </Link>
         ) : null}
         {perDog.length === 0 ? (
-          <div className="card">
-            <div className="title">등록된 강아지가 없어요</div>
-            <div className="sub">오른쪽 위 + 로 첫 강아지를 등록하세요</div>
-          </div>
+          <Link to="/dogs/new" className="card card--row" style={{ color: 'inherit', borderColor: 'var(--mint-mid)' }}>
+            <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span className="title">등록된 강아지가 없어요</span>
+              <span className="sub">오른쪽 위 <b>강아지</b> 버튼 → <b>+</b>로 첫 강아지를 등록하세요. 여기를 눌러도 돼요</span>
+            </span>
+            <Chip label="등록" tone="mint" />
+          </Link>
         ) : null}
         {perDog.length > 0 && filtered.length === 0 ? (
           <div className="card">
