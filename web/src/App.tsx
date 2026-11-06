@@ -10,6 +10,7 @@ import { DogFormScreen } from './screens/DogForm';
 import { DogsScreen } from './screens/Dogs';
 import { FolderReviewScreen } from './screens/FolderReview';
 import { FoldersScreen } from './screens/Folders';
+import { GuideScreen } from './screens/Guide';
 import { SendScreen } from './screens/Send';
 import { SessionReviewScreen } from './screens/SessionReview';
 import { SettingsScreen } from './screens/Settings';
@@ -33,6 +34,7 @@ export default function App() {
       <Route path="/dogs/:dogId/edit" element={<DogFormScreen />} />
       <Route path="/send" element={<SendScreen />} />
       <Route path="/settings" element={<SettingsScreen />} />
+      <Route path="/guide" element={<GuideScreen />} />
       <Route path="*" element={<Navigate to="/folders" replace />} />
     </Routes>
   );

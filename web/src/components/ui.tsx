@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-
-import { GUIDE_URL } from '../config';
+import { Link } from 'react-router-dom';
 
 import type { Sex } from '../db/db';
 
@@ -79,7 +78,7 @@ export function GuideBanner() {
       <span style={{ flex: 1 }}>
         <b>처음이세요?</b> 등록부터 보내기까지 한 번에 따라가는 안내가 있어요.
       </span>
-      <a href={GUIDE_URL} target="_blank" rel="noopener" className="btn btn--small" style={{ background: 'var(--mint)', borderColor: 'var(--mint)', color: 'var(--white)' }} onClick={dismiss}>사용 안내</a>
+      <Link to="/guide" className="btn btn--small" style={{ background: 'var(--mint)', borderColor: 'var(--mint)', color: 'var(--white)' }} onClick={dismiss}>사용 안내</Link>
       <button type="button" className="icon-btn" aria-label="닫기" style={{ width: 32, height: 32, fontSize: 16 }} onClick={dismiss}>✕</button>
     </div>
   );
