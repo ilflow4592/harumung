@@ -180,7 +180,7 @@ export function DogFormScreen() {
           ) : (
             <button type="button" className="btn btn--ghost btn--small" style={{ alignSelf: 'flex-start', border: 0, color: 'var(--mint)', fontWeight: 700 }} onClick={() => setShowPhone2(true)}>+ 연락처 하나 더 (최대 2개)</button>
           )}
-          <span className="sub">하루멍 링크를 알림톡·문자로 보내는 데만 써요</span>
+          <span className="sub">보내기 화면에서 누구에게 보낼지 확인하는 용도예요</span>
         </div>
 
         <div className="field">
