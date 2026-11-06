@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { Dog } from '../db/db';
+import { track } from '../lib/analytics';
 import { useCaptureStore } from '../store/capture';
 import { DogAvatar, SexBadge } from './ui';
 
@@ -22,6 +23,7 @@ export function DogSheet({ dog, count, date, onClose }: { dog: Dog | null; count
   };
 
   const startShoot = () => {
+    track('camera_opened', { from: 'dog_sheet' });
     setSelected([dog.id]);
     navigate('/camera');
   };
@@ -40,8 +42,8 @@ export function DogSheet({ dog, count, date, onClose }: { dog: Dog | null; count
           </span>
         </div>
         <button type="button" className="btn" onClick={startShoot}>촬영 시작</button>
-        <button type="button" className="btn btn--outline" onClick={() => navigate(`/folders/${dog.id}${date ? `?d=${date}` : ''}`)}>사진 폴더 검수</button>
-        <button type="button" className="btn btn--ghost" onClick={() => navigate(`/dogs/${dog.id}/edit`)}>정보 수정 · 퇴원</button>
+        <button type="button" className="btn btn--outline" onClick={() => { track('dog_sheet_action', { action: 'folder' }); navigate(`/folders/${dog.id}${date ? `?d=${date}` : ''}`); }}>사진 폴더 검수</button>
+        <button type="button" className="btn btn--ghost" onClick={() => { track('dog_sheet_action', { action: 'edit' }); navigate(`/dogs/${dog.id}/edit`); }}>정보 수정 · 퇴원</button>
         <button type="button" className="btn btn--ghost" onClick={close}>취소</button>
       </div>
     </div>

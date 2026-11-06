@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { MediaViewer } from '../components/MediaViewer';
 import { DogAvatar, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
 import { finishSessionReview, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate } from '../db/repo';
+import { track } from '../lib/analytics';
 import { useCaptureStore } from '../store/capture';
 
 const UNASSIGNED = '__unassigned__';
@@ -36,7 +37,13 @@ export function SessionReviewScreen() {
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
-  const openView = (m: MediaItem) => setViewIndex(items.findIndex((x) => x.id === m.id));
+  const openView = (m: MediaItem) => { track('viewer_opened', { from: 'session_review', kind: m.kind }); setViewIndex(items.findIndex((x) => x.id === m.id)); };
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current || items.length === 0) return;
+    openedRef.current = true;
+    track('session_review_opened', { items: items.length, unassigned: items.filter((m) => m.dogIds.length === 0).length, videos: items.filter((m) => m.kind === 'VIDEO').length });
+  }, [items]);
 
   const dogIdsOf = (m: MediaItem) => assign[m.id] ?? m.dogIds;
 
@@ -77,6 +84,7 @@ export function SessionReviewScreen() {
   /** 미지정 전부를 고른 강아지에게. */
   const fillUnassigned = () => {
     if (!target) return;
+    track('unassigned_fill_all', { count: unassignedCount });
     setAssign((prev) => {
       const next = { ...prev };
       for (const m of items) if (dogIdsOf(m).length === 0 && !deleted.has(m.id)) next[m.id] = [target];
@@ -88,6 +96,7 @@ export function SessionReviewScreen() {
     if (!sessionId) return;
     if (deleted.size > 0 && !window.confirm(`${deleted.size}개를 삭제할까요? 삭제는 되돌릴 수 없어요.`)) return;
     await finishSessionReview(sessionId, items.filter((m) => !deleted.has(m.id)).map((m) => m.id), assign);
+    track('session_review_saved', { kept: items.length - deleted.size, deleted: deleted.size, assign_changes: Object.keys(assign).length, unassigned_left: unassignedCount, used_assign_tab: Object.keys(assign).length > 0 });
     await qc.invalidateQueries({ queryKey: ['folders'] });
     reset();
     navigate('/folders', { replace: true });
@@ -100,7 +109,7 @@ export function SessionReviewScreen() {
         right={
           <div className="seg" role="tablist">
             <button type="button" role="tab" aria-selected={mode === 'delete'} className={mode === 'delete' ? 'on' : ''} onClick={() => setMode('delete')}>삭제</button>
-            <button type="button" role="tab" aria-selected={mode === 'assign'} className={mode === 'assign' ? 'on' : ''} onClick={() => setMode('assign')}>
+            <button type="button" role="tab" aria-selected={mode === 'assign'} className={mode === 'assign' ? 'on' : ''} onClick={() => { track('session_assign_tab', { unassigned: unassignedCount }); setMode('assign'); }}>
               배정{unassignedCount > 0 ? <span className="seg__dot">{unassignedCount}</span> : null}
             </button>
           </div>
@@ -186,7 +195,7 @@ export function SessionReviewScreen() {
           <span className="sub">{Object.keys(assign).length > 0 ? `배정 변경 ${Object.keys(assign).length}장` : '삭제는 되돌릴 수 없어요'}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => navigate('/camera', { replace: true })}>계속 촬영</button>
+          <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => { track('session_review_continue', { items: items.length }); navigate('/camera', { replace: true }); }}>계속 촬영</button>
           <button type="button" className="btn" style={{ flex: 1.6 }} onClick={save}>저장하고 폴더로</button>
         </div>
       </footer>

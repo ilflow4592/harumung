@@ -12,6 +12,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.106.1",
     "dexie": "^4.4.7",
+    "posthog-js": "^1.447.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",

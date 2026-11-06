@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TopBar } from '../components/ui';
 import { emptyTrash, listActiveDogs, listPurgeCandidates, purgeOriginals, storageStats, wipeAll } from '../db/repo';
 import { PURGE_OPTIONS, getPurgeDays, isIOS, isStandalone, requestPersistentStorage, setPurgeDays } from '../lib/settings';
+import { track } from '../lib/analytics';
 import { formatBytes } from '../lib/share';
 
 /** 설정: 저장공간·자동 정리·홈 화면 설치·앱 정보. 서버 없는 동안 폰 저장공간 관리가 핵심. */
@@ -31,7 +32,12 @@ export function SettingsScreen() {
     qc.invalidateQueries({ queryKey: ['dog-kept'] }),
   ]);
 
-  const changeDays = (d: number) => { setPurgeDays(d); setDays(d); };
+  const changeDays = (d: number) => { track('purge_days_changed', { days: d }); setPurgeDays(d); setDays(d); };
+  useEffect(() => {
+    if (!stats) return;
+    track('settings_viewed', { total_bytes: stats.totalBytes, photo_count: stats.photoCount, video_count: stats.videoCount, quota_pct: stats.quotaBytes && stats.usageBytes ? Math.round((stats.usageBytes / stats.quotaBytes) * 100) : null, dogs: dogs.length });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!stats]);
 
   const purgeNow = async () => {
     const bytes = candidatesNow.reduce((n, m) => n + (m.blob?.size ?? 0) + (m.compressedBlob?.size ?? 0), 0);
@@ -39,6 +45,7 @@ export function SettingsScreen() {
     setBusy(true);
     try {
       const freed = await purgeOriginals(candidatesNow.map((m) => m.id));
+      track('purge_now', { count: candidatesNow.length, freed_bytes: freed });
       await refresh();
       setMsg(`${formatBytes(freed)} 비웠어요`);
     } finally { setBusy(false); }
@@ -48,6 +55,7 @@ export function SettingsScreen() {
     setBusy(true);
     try {
       const n = await emptyTrash();
+      track('trash_emptied', { count: n });
       await refresh();
       setMsg(`삭제 기록 ${n}개를 비웠어요`);
     } finally { setBusy(false); }
@@ -56,6 +64,7 @@ export function SettingsScreen() {
   const wipe = async () => {
     if (!window.confirm('강아지·사진·기록을 전부 지울까요? 테스트 기기에서만 쓰세요. 되돌릴 수 없어요.')) return;
     if (!window.confirm('정말 전부 지울까요?')) return;
+    track('wipe_all');
     await wipeAll();
     await qc.invalidateQueries();
     navigate('/folders', { replace: true });
@@ -63,6 +72,7 @@ export function SettingsScreen() {
 
   const persist = async () => {
     const r = await requestPersistentStorage();
+    track('persist_requested', { result: r === null ? 'unsupported' : r ? 'granted' : 'denied' });
     setPersisted(r);
     setMsg(r ? '브라우저가 저장소를 보호해요' : r === null ? '이 브라우저는 보호 설정이 없어요. 홈 화면에 설치하면 돼요' : '보호 요청이 거절됐어요. 홈 화면 설치를 권해요');
   };
@@ -74,7 +84,7 @@ export function SettingsScreen() {
     <div className="screen screen--surface">
       <TopBar title="설정" onBack={() => navigate(-1)} />
       <main className="body" style={{ paddingBottom: 40 }}>
-        <Link to="/guide" className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }}>
+        <Link to="/guide" className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }} onClick={() => track('guide_opened', { from: 'settings' })}>
           <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--mint-light)', color: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flex: '0 0 auto' }}>?</span>
           <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span className="title">사용 안내</span>

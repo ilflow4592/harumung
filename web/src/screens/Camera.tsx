@@ -6,6 +6,7 @@ import { DogAvatar, useObjectUrl } from '../components/ui';
 import type { MediaItem } from '../db/db';
 import { getOrCreateOpenSession, insertCapturedMedia, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate, markSessionReviewing } from '../db/repo';
 import { MAX_VIDEO_MS, applyModeResolution, applyNativeZoom, cameraErrorMessage, capturePhotoBest, makeThumbnail, nativeZoomRange, openCamera, openMic, startRecording, stopStream, streamResolution, videoDurationMs, videoThumbnail, type RecordingHandle } from '../lib/camera';
+import { track } from '../lib/analytics';
 import { shutterFeedback } from '../lib/feedback';
 import { useCaptureStore } from '../store/capture';
 
@@ -25,7 +26,7 @@ export function CameraScreen() {
   const [hq, setHq] = useState<boolean>(() => { try { return localStorage.getItem(HQ_KEY) === '1'; } catch { return false; } });
   const [resolution, setResolution] = useState<string | null>(null);
   const [lastSource, setLastSource] = useState<'sensor' | 'preview' | 'native' | null>(null);
-  const toggleHq = () => setHq((v) => { const n = !v; try { localStorage.setItem(HQ_KEY, n ? '1' : '0'); } catch { /* 저장 못 해도 동작엔 지장 없음 */ } return n; });
+  const toggleHq = () => setHq((v) => { const n = !v; track('hq_toggled', { on: n }); try { localStorage.setItem(HQ_KEY, n ? '1' : '0'); } catch { /* 저장 못 해도 동작엔 지장 없음 */ } return n; });
   const [importing, setImporting] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +101,7 @@ export function CameraScreen() {
         changeZoom(startZoom * (dist(e.touches) / startDist));
       }
     };
-    const onEnd = (e: TouchEvent) => { if (e.touches.length < 2) startDist = 0; };
+    const onEnd = (e: TouchEvent) => { if (e.touches.length < 2 && startDist > 0) { startDist = 0; track('zoom_changed', { zoom: Math.round(zoomRef.current * 10) / 10, via: 'pinch', native: nativeRef.current }); } };
     const block = (e: Event) => e.preventDefault();
     el.addEventListener('touchstart', onStart, { passive: false });
     el.addEventListener('touchmove', onMove, { passive: false });
@@ -122,6 +123,7 @@ export function CameraScreen() {
   const cycleZoom = () => {
     const steps = [1, 2, 3].filter((v) => v <= zoomMax);
     const next = steps.find((v) => v > zoom + 0.05) ?? steps[0];
+    track('zoom_changed', { zoom: next, via: 'chip', native: nativeRef.current });
     changeZoom(next);
   };
   const [busy, setBusy] = useState(false);
@@ -175,6 +177,7 @@ export function CameraScreen() {
           await videoRef.current.play();
         }
         setResolution(streamResolution(s));
+        track('camera_ready', { resolution: streamResolution(s), native_zoom: !!nativeZoomRange(s) });
         const range = nativeZoomRange(s);
         zoomRange.current = range;
         nativeRef.current = !!range;
@@ -186,6 +189,7 @@ export function CameraScreen() {
         setReady(true);
         setError(null);
       } catch (e) {
+        track('camera_error', { name: (e as { name?: string })?.name ?? 'unknown' });
         setError(cameraErrorMessage(e));
       }
     };
@@ -226,7 +230,7 @@ export function CameraScreen() {
   const takePhoto = useCallback(async () => {
     if (!sessionId || busy || !videoRef.current) return;
     // 고화질 모드: 기본 카메라 앱을 연다. 결과는 onHqPicked로 들어온다.
-    if (hq && hqAvailable) { hqInput.current?.click(); return; }
+    if (hq && hqAvailable) { track('photo_hq_requested', { dog_count: selectedDogIds.length }); hqInput.current?.click(); return; }
     setBusy(true);
     // 셔터 효과는 저장 전에 즉시. 사용자가 "찍혔다"를 바로 느끼게 한다.
     setFlash((n) => n + 1);
@@ -234,6 +238,7 @@ export function CameraScreen() {
     try {
       const { blob, source } = await capturePhotoBest(videoRef.current, streamRef.current, nativeRef.current ? 1 : zoomRef.current);
       setLastSource(source);
+      track('photo_captured', { source, dog_count: selectedDogIds.length, zoom: Math.round(zoomRef.current * 10) / 10, bytes: blob.size, resolution, shot_index: shotCount + 1 });
       const thumbBlob = await makeThumbnail(blob);
       await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob, thumbBlob, mimeType: blob.type || 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
       bumpShotCount();
@@ -254,6 +259,7 @@ export function CameraScreen() {
         const thumbBlob = await makeThumbnail(file);
         await insertCapturedMedia({ sessionId, kind: 'PHOTO', blob: file, thumbBlob, mimeType: file.type || 'image/jpeg', durationMs: null, dogIds: selectedDogIds });
         setLastSource('native');
+        track('photo_captured', { source: 'native', dog_count: selectedDogIds.length, bytes: file.size, shot_index: shotCount + 1 });
         bumpShotCount();
         refreshStrip();
         showSaved(`${nameLabel} · ${stripMedia.length + 1}장째 저장됨 (원본)`);
@@ -273,6 +279,7 @@ export function CameraScreen() {
     if (!micRef.current) {
       micRef.current = await openMic();
       setNoMic(!micRef.current);
+      track('mic_permission', { granted: !!micRef.current });
     }
     const camera = streamRef.current;
     if (!camera) return;
@@ -286,6 +293,7 @@ export function CameraScreen() {
     recRef.current = handle;
     setRecording(true);
     setRecMs(0);
+    track('video_record_started', { dog_count: dogIdsAtStart.length, mic: !!micRef.current });
     const startedAt = Date.now();
     const tick = window.setInterval(() => setRecMs(Date.now() - startedAt), 200);
     shutterFeedback();
@@ -297,6 +305,7 @@ export function CameraScreen() {
         bumpShotCount();
         refreshStrip();
         showSaved(`영상 ${Math.round(durationMs / 1000)}초 저장됨`);
+        track('video_record_finished', { duration_ms: durationMs, bytes: blob.size, mime: mimeType, dog_count: dogIdsAtStart.length, auto_stop: durationMs >= MAX_VIDEO_MS - 500 });
       })
       .catch((e) => setError(String(e)))
       .finally(() => { window.clearInterval(tick); setRecording(false); setRecMs(0); setBusy(false); recRef.current = null; });
@@ -325,6 +334,7 @@ export function CameraScreen() {
         }
         refreshStrip();
         showSaved(`${files.length}개 가져옴`);
+        track('album_imported', { count: files.length, videos: [...files].filter((f) => f.type.startsWith('video/')).length, dog_count: dogIds.length });
       } finally {
         setImporting(null);
         setBusy(false);
@@ -336,6 +346,7 @@ export function CameraScreen() {
 
   const close = useCallback(async () => {
     recRef.current?.stop();
+    track('camera_closed', { shot_count: shotCount, to_review: shotCount > 0 });
     if (sessionId && shotCount > 0) {
       await markSessionReviewing(sessionId);
       navigate('/session-review', { replace: true });
@@ -359,8 +370,8 @@ export function CameraScreen() {
       <div className="cam__top">
         <button type="button" className="cam__round" aria-label="촬영 마치고 검수" onClick={close}>✕</button>
         <div className="cam__seg" role="tablist" aria-label="촬영 모드">
-          <button type="button" role="tab" aria-selected={mode === 'photo'} className={mode === 'photo' ? 'on' : ''} disabled={recording} onClick={() => setMode('photo')}>사진</button>
-          <button type="button" role="tab" aria-selected={mode === 'video'} className={mode === 'video' ? 'on' : ''} disabled={recording} onClick={() => setMode('video')}>영상</button>
+          <button type="button" role="tab" aria-selected={mode === 'photo'} className={mode === 'photo' ? 'on' : ''} disabled={recording} onClick={() => { track('camera_mode_changed', { mode: 'photo' }); setMode('photo'); }}>사진</button>
+          <button type="button" role="tab" aria-selected={mode === 'video'} className={mode === 'video' ? 'on' : ''} disabled={recording} onClick={() => { track('camera_mode_changed', { mode: 'video' }); setMode('video'); }}>영상</button>
         </div>
         {mode === 'photo' ? (
           <button type="button" className={`cam__round cam__hq ${hq ? 'cam__hq--on' : ''}`} aria-pressed={hq} onClick={toggleHq} title="고화질: 기본 카메라로 찍기">HQ</button>
@@ -383,7 +394,7 @@ export function CameraScreen() {
         <div className="cam__who">
           <b>{nameLabel}</b>
           {stripMedia.length > 0 ? <span className="cam__who-count">{stripMedia.length}장</span> : null}
-          <button type="button" className="cam__who-x" aria-label="선택 해제" onClick={clearSelected}>✕</button>
+          <button type="button" className="cam__who-x" aria-label="선택 해제" onClick={() => { track('selection_cleared', { had: selectedDogIds.length }); clearSelected(); }}>✕</button>
         </div>
       )}
 
@@ -396,7 +407,7 @@ export function CameraScreen() {
           {dogs.map((d) => {
             const selected = selectedDogIds.includes(d.id);
             return (
-              <button key={d.id} type="button" className={`cam__dog ${selected ? 'cam__dog--on' : ''}`} aria-pressed={selected} disabled={recording} onClick={() => toggleDog(d.id)}>
+              <button key={d.id} type="button" className={`cam__dog ${selected ? 'cam__dog--on' : ''}`} aria-pressed={selected} disabled={recording} onClick={() => { track('dog_toggled', { on: !selected, selected_after: selected ? selectedDogIds.length - 1 : selectedDogIds.length + 1 }); toggleDog(d.id); }}>
                 <span className="cam__dog-av">
                   <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} size={52} selected={selected} />
                   {selected ? <span className="cam__dog-check">✓</span> : null}
@@ -406,7 +417,7 @@ export function CameraScreen() {
             );
           })}
           {attended.length > 0 && attended.length < allDogs.length ? (
-            <button type="button" className="cam__dog" disabled={recording} onClick={() => setShowAll((v) => !v)}>
+            <button type="button" className="cam__dog" disabled={recording} onClick={() => { track('strip_show_all', { show: !showAll }); setShowAll((v) => !v); }}>
               <span className="cam__more">{showAll ? '−' : '+'}</span>
               <span className="cam__dog-name">{showAll ? dogCountLabel : '전체'}</span>
             </button>
@@ -429,7 +440,7 @@ export function CameraScreen() {
           >
             <span />
           </button>
-          <button type="button" className="cam__side" aria-label="앨범에서 가져오기" disabled={recording || busy} onClick={() => albumInput.current?.click()}>
+          <button type="button" className="cam__side" aria-label="앨범에서 가져오기" disabled={recording || busy} onClick={() => { track('album_import_opened'); albumInput.current?.click(); }}>
             <AlbumIcon />
           </button>
           <input ref={hqInput} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => onHqPicked(e.target.files)} />

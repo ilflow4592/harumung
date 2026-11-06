@@ -4,7 +4,10 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 
 import App from './App';
+import { initAnalytics } from './lib/analytics';
 import './styles.css';
+
+initAnalytics();
 
 // 개발 빌드에서만 테스트 데이터 함수를 노출한다 (window.__harumungSeed)
 if (import.meta.env.DEV) void import('./dev/seed');

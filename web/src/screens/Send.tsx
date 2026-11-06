@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { DateNav, useDateParam } from '../components/DateNav';
@@ -7,6 +7,7 @@ import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem, SendLog } from '../db/db';
 import { listActiveDogs, listContacts, listDogKeptOn, listReviewedDogIds, listSendLogs, markSent } from '../db/repo';
 import { canShareFiles, downloadFiles, formatBytes, shareFiles, splitBatches, toShareBundle, type PrepareProgress, type ShareEntry } from '../lib/share';
+import { track, timer } from '../lib/analytics';
 import { unlockAudio } from '../lib/videoCompress';
 
 const PHOTO_KEY = 'harumung.send.compressPhoto';
@@ -50,11 +51,19 @@ export function SendScreen() {
   const pending = candidates.filter((d) => (unsentBy[d.id] ?? 1) > 0).sort((a, b) => Number(reviewedSet.has(b.id)) - Number(reviewedSet.has(a.id)));
   const done = candidates.filter((d) => (unsentBy[d.id] ?? 1) === 0);
 
-  const togglePhoto = () => setCompressPhoto((v) => { writeFlag(PHOTO_KEY, !v); return !v; });
+  const togglePhoto = () => setCompressPhoto((v) => { writeFlag(PHOTO_KEY, !v); track('compress_toggled', { kind: 'photo', on: !v }); return !v; });
   const toggleVideo = () => {
     unlockAudio();
-    setCompressVideo((v) => { writeFlag(VIDEO_KEY, !v); return !v; });
+    setCompressVideo((v) => { writeFlag(VIDEO_KEY, !v); track('compress_toggled', { kind: 'video', on: !v }); return !v; });
   };
+  // 화면 진입 1회. 카드들이 미발송 수를 보고한 뒤(다음 틱) 집계.
+  const viewedRef = useRef(false);
+  useEffect(() => {
+    if (viewedRef.current || dogs.length === 0) return;
+    const id = window.setTimeout(() => { viewedRef.current = true; track('send_screen_viewed', { pending_dogs: pending.length, done_dogs: done.length }); }, 800);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dogs.length, Object.keys(unsentBy).length]);
   const report = (dogId: string, n: number) => setUnsentBy((prev) => (prev[dogId] === n ? prev : { ...prev, [dogId]: n }));
 
   return (
@@ -135,8 +144,13 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
     if (target.length === 0) { setEntries([]); setProgress(null); return; }
     setEntries([]);
     setProgress({ done: 0, total: target.length, stage: 'photo' });
+    const took = timer();
     toShareBundle(target, dog.name, date, compressPhoto, compressVideo, (p) => { if (!cancelled) setProgress(p); })
-      .then((e) => { if (!cancelled) { setEntries(e); setProgress(null); } });
+      .then((e) => {
+        if (cancelled) return;
+        setEntries(e); setProgress(null);
+        track('send_prepare_done', { items: e.length, photos: e.filter((x) => x.item.kind === 'PHOTO').length, videos: e.filter((x) => x.item.kind === 'VIDEO').length, bytes: e.reduce((n, x) => n + x.file.size, 0), compress_photo: compressPhoto, compress_video: compressVideo, ms: took() });
+      });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, sentIds, includeSent, dog.name, date, compressPhoto, compressVideo]);
@@ -162,7 +176,9 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
     try {
       const n = logs.length + doneBatches.size + 1;
       const text = `${dog.name} ${dateLabel(date)} 사진 ${batch.filter((e) => e.item.kind === 'PHOTO').length}장${batch.some((e) => e.item.kind === 'VIDEO') ? ` · 영상 ${batch.filter((e) => e.item.kind === 'VIDEO').length}개` : ''} 🐶`;
+      track('send_attempted', { items: batch.length, bytes: batch.reduce((k, e) => k + e.file.size, 0), batch_index: batchIdx + 1, batches: batches.length, include_sent: includeSent, round: n });
       const r = await shareFiles(batch.map((e) => e.file), `${dog.name} ${dateLabel(date)} (${n}번째)`, text);
+      track(`send_${r}`, { round: n, items: batch.length });
       if (r === 'shared') {
         await markSent(date, dog.id, batch.map((e) => e.item));
         await Promise.all([qc.invalidateQueries({ queryKey: ['send-logs'] }), qc.invalidateQueries({ queryKey: ['folders'] })]);
@@ -199,7 +215,7 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
           </span>
           <span className="sub">
             {unsent.length > 0 ? `미발송 ${unsent.length}개` : '모두 보냄'} · 오늘 전체 {items.length}개
-            {contacts.length ? ` · ${contacts.map((c) => c.phone).join(', ')}` : ''}
+            {contacts.length ? <span className="ph-mask"> · {contacts.map((c) => c.phone).join(', ')}</span> : null}
           </span>
         </span>
         <span className="sub">폴더 ›</span>
@@ -207,7 +223,7 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
 
       {logs.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button type="button" className="btn btn--small btn--ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowHistory((v) => !v)}>
+          <button type="button" className="btn btn--small btn--ghost" style={{ alignSelf: 'flex-start' }} onClick={() => { if (!showHistory) track('send_history_viewed', { sends: logs.length }); setShowHistory((v) => !v); }}>
             {showHistory ? '발송 이력 접기' : `발송 이력 보기 (${logs.map((l) => timeLabel(l.sentAt)).join(', ')})`}
           </button>
           {showHistory ? logs.map((l, i) => <HistoryRow key={l.id} n={i + 1} log={l} items={items} />) : null}
@@ -223,7 +239,7 @@ function SendCard({ dog, date, reviewed, logs, compressPhoto, compressVideo, onU
 
       {logs.length > 0 && items.some((m) => m.blob) ? (
         <label className="sexbox" style={{ height: 40, fontSize: 13, fontWeight: 500 }}>
-          <input type="checkbox" checked={includeSent} onChange={(e) => setIncludeSent(e.target.checked)} />
+          <input type="checkbox" checked={includeSent} onChange={(e) => { track('send_include_sent_toggled', { on: e.target.checked }); setIncludeSent(e.target.checked); }} />
           이미 보낸 사진도 포함해서 보내기
         </label>
       ) : null}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { MediaItem } from '../db/db';
 import { saveEdited } from '../db/repo';
+import { track } from '../lib/analytics';
 import { makeThumbnail, videoThumbnail } from '../lib/camera';
 import { compressVideo, unlockAudio } from '../lib/videoCompress';
 import { useObjectUrl } from './ui';
@@ -47,6 +48,7 @@ export function VideoEditor({ item, onClose, onSaved }: { item: MediaItem; onClo
       const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('인코딩 실패'))), 'image/jpeg', 0.9));
       const thumbBlob = await makeThumbnail(blob);
       await saveEdited(item.id, { blob, thumbBlob, mimeType: 'image/jpeg', durationMs: null, kind: 'PHOTO' }, 'copy');
+      track('video_frame_captured', { at_sec: Math.round(v.currentTime * 10) / 10 });
       onSaved();
     } finally { setBusy(null); }
   };
@@ -66,6 +68,7 @@ export function VideoEditor({ item, onClose, onSaved }: { item: MediaItem; onClo
       });
       const thumbBlob = await videoThumbnail(r.blob);
       await saveEdited(item.id, { blob: r.blob, thumbBlob, mimeType: r.mimeType, durationMs: r.durationMs }, mode);
+      track('video_edit_saved', { mode, trimmed, mute, duration_ms: r.durationMs, original_ms: Math.round(duration * 1000), bytes: r.blob.size });
       onSaved();
     } finally { setBusy(null); }
   };

@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { TopBar } from '../components/ui';
 import type { Sex } from '../db/db';
 import { createDog, deleteDogIfEmpty, getDog, setDogActive, updateDog } from '../db/repo';
+import { track } from '../lib/analytics';
 import { makeThumbnail } from '../lib/camera';
 
 // iOS 사파리는 파일 입력을 열면 항상 자체 시트(사진 보관함·사진 찍기·파일 선택)를 띄운다.
@@ -54,6 +55,7 @@ export function DogFormScreen() {
     setSheetOpen(false);
     if (!file) return;
     const t = await makeThumbnail(file, 400);
+    track('dog_photo_picked', { editing });
     if (thumbUrl) URL.revokeObjectURL(thumbUrl);
     setThumb(t);
     setThumbUrl(URL.createObjectURL(t));
@@ -84,6 +86,7 @@ export function DogFormScreen() {
     const input = { name: name.trim(), sex, thumbBlob: thumb, memo: memo.trim() || null, phones: [p1, p2] };
     if (editing && dogId) await updateDog(dogId, input);
     else await createDog(input);
+    track(editing ? 'dog_updated' : 'dog_created', { has_photo: !!thumb, sex, phone_count: [p1, p2].filter(Boolean).length, has_memo: !!memo.trim() });
     await invalidate();
     navigate(-1);
   };
@@ -93,6 +96,7 @@ export function DogFormScreen() {
     if (!dogId) return;
     if (!window.confirm(`${name}을(를) 퇴원 처리할까요? 목록과 카메라에서 사라지고, 사진은 남아요. 설정에서 되돌릴 수 있어요.`)) return;
     await setDogActive(dogId, false);
+    track('dog_retired');
     await invalidate();
     navigate('/dogs', { replace: true });
   };
@@ -101,6 +105,7 @@ export function DogFormScreen() {
     if (!dogId) return;
     if (!window.confirm(`${name}을(를) 완전히 삭제할까요? 되돌릴 수 없어요.`)) return;
     const ok = await deleteDogIfEmpty(dogId);
+    track('dog_delete_attempted', { ok });
     if (!ok) { window.alert('사진이 있는 아이는 삭제할 수 없어요. 대신 퇴원 처리를 해 주세요.'); return; }
     await invalidate();
     navigate('/dogs', { replace: true });

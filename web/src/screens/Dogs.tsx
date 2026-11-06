@@ -7,18 +7,21 @@ import { matchesName, SearchBox } from '../components/SearchBox';
 import { DogAvatar, SexBadge, TopBar } from '../components/ui';
 import type { Dog } from '../db/db';
 import { listActiveDogs, listInactiveDogs, setDogActive } from '../db/repo';
+import { track } from '../lib/analytics';
 
 export function DogsScreen() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Dog | null>(null);
   const qc = useQueryClient();
+  const onQuery = (q: string) => { if (q.trim().length === 1 && !query.trim()) track('search_used', { screen: 'dogs' }); setQuery(q); };
   const { data: dogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
   const { data: inactive = [] } = useQuery({ queryKey: ['inactive-dogs'], queryFn: listInactiveDogs });
   const [showInactive, setShowInactive] = useState(false);
   const filtered = useMemo(() => dogs.filter((d) => matchesName(d.name, query)), [dogs, query]);
   const restore = async (id: string) => {
     await setDogActive(id, true);
+    track('dog_restored');
     await Promise.all([qc.invalidateQueries({ queryKey: ['dogs'] }), qc.invalidateQueries({ queryKey: ['inactive-dogs'] }), qc.invalidateQueries({ queryKey: ['folders'] })]);
   };
 
@@ -26,7 +29,7 @@ export function DogsScreen() {
     <div className="screen screen--surface">
       <TopBar title="강아지 관리" onBack={() => navigate(-1)} right={<Link to="/dogs/new" className="icon-btn icon-btn--mint" aria-label="강아지 등록">+</Link>} />
       <main className="body">
-        <SearchBox value={query} onChange={setQuery} />
+        <SearchBox value={query} onChange={onQuery} />
         {filtered.map((d) => (
           <button key={d.id} type="button" className="card card--row" style={{ textAlign: 'left', width: '100%' }} onClick={() => setPicked(d)}>
             <DogAvatar name={d.name} sex={d.sex} thumb={d.thumbBlob} />

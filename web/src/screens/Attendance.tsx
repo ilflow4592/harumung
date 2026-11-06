@@ -6,6 +6,7 @@ import { matchesName, SearchBox } from '../components/SearchBox';
 import { DogAvatar, SexBadge, TopBar } from '../components/ui';
 import { DateNav, useDateParam } from '../components/DateNav';
 import { listActiveDogs, listAttendedDogIds, setAttendance, toggleAttendance } from '../db/repo';
+import { track } from '../lib/analytics';
 
 /** 오늘 등원 체크. 탭하면 바로 저장되고, 카메라 스트립과 폴더 목록이 이 명단으로 줄어든다. */
 export function AttendanceScreen() {
@@ -21,11 +22,11 @@ export function AttendanceScreen() {
 
   const toggle = useMutation({
     mutationFn: (dogId: string) => toggleAttendance(date, dogId),
-    onSuccess: invalidate,
+    onSuccess: (on) => { track('attendance_toggled', { on, total_dogs: dogs.length }); return invalidate(); },
   });
   const setAll = useMutation({
     mutationFn: (ids: string[]) => setAttendance(date, ids),
-    onSuccess: invalidate,
+    onSuccess: (_r, ids) => { track('attendance_set_all', { count: ids.length, total_dogs: dogs.length }); return invalidate(); },
   });
 
   return (
@@ -61,7 +62,7 @@ export function AttendanceScreen() {
         {dogs.length > 0 && filtered.length === 0 ? <div className="sub">"{query.trim()}" 강아지가 없어요</div> : null}
       </main>
       <footer className="footer footer--surface" style={{ borderTop: 0 }}>
-        <button type="button" className="btn" onClick={() => navigate('/camera')}>촬영 시작 ({attended.length}마리)</button>
+        <button type="button" className="btn" onClick={() => { track('camera_opened', { from: 'attendance', attended: attended.length }); navigate('/camera'); }}>촬영 시작 ({attended.length}마리)</button>
         <button type="button" className="btn btn--ghost" onClick={() => navigate(-1)}>완료</button>
       </footer>
     </div>

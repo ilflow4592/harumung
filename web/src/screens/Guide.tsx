@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { TopBar } from '../components/ui';
+import { track } from '../lib/analytics';
 
 /**
  * 앱 안 사용 안내. 원장·선생님이 읽는 글이라 존댓말.
@@ -32,7 +33,7 @@ export function GuideScreen() {
           앱스토어 설치 없이 브라우저 링크로 열고, 모든 사진은 선생님 폰 안에만 저장됩니다.
         </p>
         <nav className="guide__toc">
-          {TOC.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
+          {TOC.map(([id, label]) => <a key={id} href={`#${id}`} onClick={() => track('guide_section_jumped', { section: id })}>{label}</a>)}
         </nav>
 
         <Section id="flow" title="하루 흐름 한눈에">

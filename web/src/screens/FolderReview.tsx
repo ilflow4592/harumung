@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DateNav, useDateParam } from '../components/DateNav';
@@ -8,6 +8,7 @@ import { PhotoEditor } from '../components/PhotoEditor';
 import { VideoEditor } from '../components/VideoEditor';
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
+import { track } from '../lib/analytics';
 import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKeptOn, listReviewedDogIds, listSendLogs, listUnassignedKept, localDate, removeDogFromMedia, setFolderReviewed } from '../db/repo';
 
 const UNASSIGNED = 'unassigned';
@@ -57,8 +58,16 @@ export function FolderReviewScreen() {
     setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const onCellTap = (i: number) => {
     if (selecting) toggle(items[i].id);
-    else setViewIndex(i);
+    else { track('viewer_opened', { from: isUnassigned ? 'unassigned' : 'folder', kind: items[i].kind }); setViewIndex(i); }
   };
+  const openedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${dogId}|${date}`;
+    if (openedRef.current === key) return;
+    openedRef.current = key;
+    track('folder_opened', { kind: isUnassigned ? 'unassigned' : 'dog', items: items.length, is_today: date === localDate() });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dogId, date, items.length]);
   const exitSelect = () => { setSelected(new Set()); setSelecting(false); };
 
   const refresh = async () => {
@@ -76,6 +85,7 @@ export function FolderReviewScreen() {
     setBusy(true);
     try {
       await setFolderReviewed(date, folderDog.id, !reviewed);
+      track('folder_reviewed', { on: !reviewed, items: items.length });
       await refresh();
       if (reviewed) {
         say('검수를 다시 열었어요');
@@ -92,6 +102,7 @@ export function FolderReviewScreen() {
     setBusy(true);
     try {
       await addDogsToMedia(ids, picked.map((d) => d.id));
+      track('media_assigned', { count: ids.length, dogs: picked.length, from: isUnassigned ? 'unassigned' : 'folder' });
       await refresh();
       setSheet(false);
       const who = picked.length === 1 ? picked[0].name : `${picked[0].name} 외 ${picked.length - 1}마리`;
@@ -105,6 +116,7 @@ export function FolderReviewScreen() {
     setBusy(true);
     try {
       await removeDogFromMedia(ids, folderDog.id);
+      track('media_removed_from_folder', { count: ids.length });
       await refresh();
       setSheet(false);
       say(`${ids.length}장을 ${folderDog.name} 폴더에서 뺐어요`);
@@ -117,6 +129,7 @@ export function FolderReviewScreen() {
     setBusy(true);
     try {
       await deleteMedia(ids);
+      track('media_deleted', { count: ids.length, where: isUnassigned ? 'unassigned' : 'folder' });
       await refresh();
       say(`${ids.length}장 삭제했어요`);
     } finally { setBusy(false); }
@@ -140,7 +153,7 @@ export function FolderReviewScreen() {
                 {!isUnassigned ? <button type="button" className="btn btn--ghost btn--small" onClick={exitSelect}>완료</button> : null}
               </div>
             ) : (
-              <button type="button" className="btn btn--outline btn--small" onClick={() => setSelecting(true)}>선택</button>
+              <button type="button" className="btn btn--outline btn--small" onClick={() => { track('folder_select_mode'); setSelecting(true); }}>선택</button>
             )
           ) : null
         }
@@ -175,7 +188,7 @@ export function FolderReviewScreen() {
         </div>
       </main>
 
-      {viewIndex !== null && !editing ? <MediaViewer items={items} index={viewIndex} dogs={dogs} onClose={() => setViewIndex(null)} onIndexChange={setViewIndex} onEdit={setEditing} /> : null}
+      {viewIndex !== null && !editing ? <MediaViewer items={items} index={viewIndex} dogs={dogs} onClose={() => setViewIndex(null)} onIndexChange={setViewIndex} onEdit={(m) => { track('editor_opened', { kind: m.kind }); setEditing(m); }} /> : null}
       {editing?.kind === 'PHOTO' ? <PhotoEditor item={editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await refresh(); say('저장했어요'); }} /> : null}
       {editing?.kind === 'VIDEO' ? <VideoEditor item={editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await refresh(); say('저장했어요'); }} /> : null}
 
@@ -195,7 +208,7 @@ export function FolderReviewScreen() {
           {reviewed ? (
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" className="btn btn--ghost" style={{ flex: 1 }} disabled={busy} onClick={toggleReviewed}>검수 다시 열기</button>
-              <button type="button" className="btn" style={{ flex: 1.4 }} onClick={() => navigate(`/send?d=${date}`)}>보호자에게 보내기</button>
+              <button type="button" className="btn" style={{ flex: 1.4 }} onClick={() => { track('send_opened', { from: 'folder' }); navigate(`/send?d=${date}`); }}>보호자에게 보내기</button>
             </div>
           ) : (
             <button type="button" className="btn" disabled={busy} onClick={toggleReviewed}>검수 완료</button>

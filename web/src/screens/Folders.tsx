@@ -8,14 +8,20 @@ import { Chip, DogAvatar, InstallHint, SexBadge } from '../components/ui';
 import type { Dog } from '../db/db';
 import { DateNav, useDateParam } from '../components/DateNav';
 import { listAttendedDogIds, listFolders } from '../db/repo';
+import { track } from '../lib/analytics';
 import { localDate, relativeLabel } from '../lib/dates';
 
 export function FoldersScreen() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Dog | null>(null);
-  const [date, setDate] = useDateParam();
+  const [date, setDateRaw] = useDateParam();
   const isToday = date === localDate();
+  const setDate = (d: string) => {
+    const off = Math.round((new Date(d).getTime() - new Date(localDate()).getTime()) / 86_400_000);
+    track('date_changed', { screen: 'folders', offset_days: off });
+    setDateRaw(d);
+  };
   const { data } = useQuery({ queryKey: ['folders', date], queryFn: () => listFolders(date) });
   const { data: attended = [] } = useQuery({ queryKey: ['attendance', date], queryFn: () => listAttendedDogIds(date) });
   const attendedSet = useMemo(() => new Set(attended), [attended]);
@@ -38,7 +44,7 @@ export function FoldersScreen() {
             <h1 style={{ fontSize: 22 }}>{relativeLabel(date) ?? '지난'} 폴더</h1>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
-            <Link to="/guide" className="icon-btn" aria-label="사용 안내" style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)' }}>?</Link>
+            <Link to="/guide" className="icon-btn" aria-label="사용 안내" style={{ fontSize: 18, fontWeight: 700, color: 'var(--mint)' }} onClick={() => track('guide_opened', { from: 'folders' })}>?</Link>
             <Link to="/settings" className="icon-btn" aria-label="설정" style={{ fontSize: 22 }}>⚙</Link>
             <Link to="/dogs" className="icon-btn icon-btn--mint" aria-label="강아지 관리" style={{ fontSize: 13, width: 'auto', padding: '0 12px' }}>강아지</Link>
           </div>
@@ -49,7 +55,7 @@ export function FoldersScreen() {
           <Link to={`/send?d=${date}`} className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>미발송 →</span><b>{perDog.filter((f) => f.unsent > 0).length}</b></Link>
         </div>
         <DateNav date={date} onChange={setDate} />
-        <SearchBox value={query} onChange={setQuery} />
+        <SearchBox value={query} onChange={(q) => { if (q.trim().length === 1 && !query.trim()) track('search_used', { screen: 'folders' }); setQuery(q); }} />
       </header>
 
       <main className="body" style={{ paddingBottom: 100 }}>
@@ -83,7 +89,7 @@ export function FoldersScreen() {
           </div>
         ) : null}
         {absent.length > 0 ? (
-          <button type="button" className="btn btn--small btn--ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setShowAbsent((v) => !v)}>
+          <button type="button" className="btn btn--small btn--ghost" style={{ alignSelf: 'flex-start' }} onClick={() => { track('absent_toggled', { show: !showAbsent }); setShowAbsent((v) => !v); }}>
             {showAbsent ? '안 온 아이 접기' : `오늘 안 온 아이 ${absent.length}마리 보기`}
           </button>
         ) : null}
@@ -108,9 +114,9 @@ export function FoldersScreen() {
 
       <footer className="footer footer--surface" style={{ borderTop: 0 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          {isToday ? <button type="button" className="btn" style={{ flex: 1.6 }} onClick={() => navigate('/camera')}>촬영 시작</button> : <button type="button" className="btn btn--outline" style={{ flex: 1.6 }} onClick={() => setDate(localDate())}>오늘로 돌아가기</button>}
+          {isToday ? <button type="button" className="btn" style={{ flex: 1.6 }} onClick={() => { track('camera_opened', { from: 'folders', attended: attended.length, dogs: perDog.length }); navigate('/camera'); }}>촬영 시작</button> : <button type="button" className="btn btn--outline" style={{ flex: 1.6 }} onClick={() => setDate(localDate())}>오늘로 돌아가기</button>}
           {perDog.some((f) => f.unsent > 0) ? (
-            <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => navigate(`/send?d=${date}`)}>
+            <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => { track('send_opened', { from: 'folders_footer' }); navigate(`/send?d=${date}`); }}>
               보내기 ({perDog.filter((f) => f.unsent > 0).length})
             </button>
           ) : null}

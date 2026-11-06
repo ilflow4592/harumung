@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { MediaItem } from '../db/db';
 import { saveEdited } from '../db/repo';
+import { track } from '../lib/analytics';
 import { makeThumbnail } from '../lib/camera';
 import { DEFAULT_EDIT, clampPan, exportEdit, frameSize, renderEdit, type PhotoEdit } from '../lib/photoEdit';
 
@@ -82,6 +83,7 @@ export function PhotoEditor({ item, onClose, onSaved }: { item: MediaItem; onClo
       const blob = await exportEdit(bitmap, full.fw, full.fh, scaled);
       const thumbBlob = await makeThumbnail(blob);
       await saveEdited(item.id, { blob, thumbBlob, mimeType: 'image/jpeg', durationMs: null }, mode);
+      track('photo_edit_saved', { mode, rotation: edit.rotation, aspect: edit.aspect === null ? 'original' : String(Math.round(edit.aspect * 100) / 100), zoom: Math.round(edit.zoom * 10) / 10, brightness: edit.brightness, moved: edit.pan.x !== 0 || edit.pan.y !== 0 });
       onSaved();
     } finally {
       setBusy(null);
