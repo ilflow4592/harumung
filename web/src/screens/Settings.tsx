@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { TopBar } from '../components/ui';
+import { GUIDE_URL } from '../config';
 import { emptyTrash, listActiveDogs, listPurgeCandidates, purgeOriginals, storageStats, wipeAll } from '../db/repo';
 import { PURGE_OPTIONS, getPurgeDays, isIOS, isStandalone, requestPersistentStorage, setPurgeDays } from '../lib/settings';
 import { formatBytes } from '../lib/share';
@@ -74,6 +75,14 @@ export function SettingsScreen() {
     <div className="screen screen--surface">
       <TopBar title="설정" onBack={() => navigate(-1)} />
       <main className="body" style={{ paddingBottom: 40 }}>
+        <a href={GUIDE_URL} target="_blank" rel="noopener" className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }}>
+          <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--mint-light)', color: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flex: '0 0 auto' }}>?</span>
+          <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span className="title">사용 안내</span>
+            <span className="sub">등록 → 등원 체크 → 촬영 → 검수 → 보내기, 화면 그림과 함께</span>
+          </span>
+          <span className="sub">열기 ›</span>
+        </a>
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="title">저장공간</div>
           {stats ? (
