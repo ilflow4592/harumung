@@ -20,10 +20,18 @@ export function unlockAudio(): void {
 
 export type CompressedVideo = { blob: Blob; mimeType: string; durationMs: number };
 
-export async function compressVideo(
-  src: Blob,
-  opts: { maxHeight?: number; bitrate?: number; onProgress?: (ratio: number) => void } = {},
-): Promise<CompressedVideo> {
+export type ProcessOptions = {
+  maxHeight?: number;
+  bitrate?: number;
+  /** 구간 자르기(초). 없으면 전체. */
+  start?: number;
+  end?: number;
+  /** 무음으로 */
+  mute?: boolean;
+  onProgress?: (ratio: number) => void;
+};
+
+export async function compressVideo(src: Blob, opts: ProcessOptions = {}): Promise<CompressedVideo> {
   const maxHeight = opts.maxHeight ?? 720;
   const bitrate = opts.bitrate ?? 1_500_000;
   const url = URL.createObjectURL(src);
@@ -46,9 +54,14 @@ export async function compressVideo(
 
     const stream = canvas.captureStream(30);
 
+    const total = Number.isFinite(video.duration) ? video.duration : 0;
+    const start = Math.max(0, Math.min(opts.start ?? 0, total));
+    const end = Math.max(start, Math.min(opts.end ?? total, total));
+    const span = Math.max(0.1, end - start);
+
     // 오디오: 파일을 디코드해 재생 시작과 함께 출력 노드로 흘린다.
     let audioSource: AudioBufferSourceNode | null = null;
-    if (audioCtx) {
+    if (audioCtx && !opts.mute) {
       try {
         const buf = await audioCtx.decodeAudioData(await src.arrayBuffer());
         const dest = audioCtx.createMediaStreamDestination();
@@ -70,26 +83,38 @@ export async function compressVideo(
       recorder.onerror = () => reject(new Error('변환 중 오류'));
     });
 
-    const duration = video.duration;
+    // 구간 시작점으로 이동
+    if (start > 0) {
+      video.currentTime = start;
+      await new Promise<void>((resolve) => { video.onseeked = () => resolve(); });
+    }
+
     let rafId = 0;
-    const draw = () => {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      if (Number.isFinite(duration) && duration > 0) opts.onProgress?.(Math.min(1, video.currentTime / duration));
-      if (!video.ended && !video.paused) rafId = requestAnimationFrame(draw);
-    };
+    let finished = false;
+    const finish = new Promise<void>((resolve) => {
+      const check = () => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        opts.onProgress?.(Math.min(1, (video.currentTime - start) / span));
+        if (video.ended || video.currentTime >= end) {
+          if (!finished) { finished = true; video.pause(); resolve(); }
+          return;
+        }
+        rafId = requestAnimationFrame(check);
+      };
+      video.onended = () => { if (!finished) { finished = true; resolve(); } };
+      rafId = requestAnimationFrame(check);
+    });
 
     recorder.start(1000);
     await video.play();
-    audioSource?.start();
-    draw();
-    await new Promise<void>((resolve) => { video.onended = () => resolve(); });
+    audioSource?.start(0, start, span);
+    await finish;
     cancelAnimationFrame(rafId);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     recorder.stop();
-    audioSource?.stop();
+    try { audioSource?.stop(); } catch { /* 이미 끝남 */ }
     const blob = await done;
     opts.onProgress?.(1);
-    return { blob, mimeType: blob.type, durationMs: Math.round((Number.isFinite(duration) ? duration : 0) * 1000) };
+    return { blob, mimeType: blob.type, durationMs: Math.round(span * 1000) };
   } finally {
     video.removeAttribute('src');
     video.load();

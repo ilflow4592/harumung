@@ -4,6 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { DateNav, useDateParam } from '../components/DateNav';
 import { MediaViewer } from '../components/MediaViewer';
+import { PhotoEditor } from '../components/PhotoEditor';
+import { VideoEditor } from '../components/VideoEditor';
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
 import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKeptOn, listReviewedDogIds, listUnassignedKept, localDate, removeDogFromMedia, setFolderReviewed } from '../db/repo';
@@ -31,6 +33,7 @@ export function FolderReviewScreen() {
   // 보기 모드: 탭하면 크게. 선택 모드: 탭하면 체크. 선택이 하나라도 있으면 선택 모드 유지.
   const [selecting, setSelecting] = useState(isUnassigned);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
+  const [editing, setEditing] = useState<MediaItem | null>(null);
   const { data: reviewedIds = [] } = useQuery({ queryKey: ['folder-reviews', date], queryFn: () => listReviewedDogIds(date) });
   const reviewed = !isUnassigned && reviewedIds.includes(dogId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -157,7 +160,9 @@ export function FolderReviewScreen() {
         </div>
       </main>
 
-      {viewIndex !== null ? <MediaViewer items={items} index={viewIndex} dogs={dogs} onClose={() => setViewIndex(null)} onIndexChange={setViewIndex} /> : null}
+      {viewIndex !== null && !editing ? <MediaViewer items={items} index={viewIndex} dogs={dogs} onClose={() => setViewIndex(null)} onIndexChange={setViewIndex} onEdit={setEditing} /> : null}
+      {editing?.kind === 'PHOTO' ? <PhotoEditor item={editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await refresh(); say('저장했어요'); }} /> : null}
+      {editing?.kind === 'VIDEO' ? <VideoEditor item={editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await refresh(); say('저장했어요'); }} /> : null}
 
       {selected.size > 0 ? (
         <footer className="footer">

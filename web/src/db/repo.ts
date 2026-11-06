@@ -157,6 +157,36 @@ export async function listDogKeptOn(dogId: string, date: string): Promise<MediaI
   return all.filter((m) => localDate(new Date(m.takenAt)) === date);
 }
 
+/**
+ * 편집 결과 저장. replace면 원본을 덮어쓰고(변환본도 비움), copy면 바로 뒤 순서로 복사본을 만든다.
+ * 장면 캡처처럼 종류가 바뀌면 kind를 준다. 해당 강아지의 오늘 검수 완료는 풀린다.
+ */
+export async function saveEdited(
+  id: string,
+  edited: { blob: Blob; thumbBlob: Blob | null; mimeType: string; durationMs: number | null; kind?: MediaKind },
+  mode: 'replace' | 'copy',
+): Promise<string> {
+  const m = await db.media.get(id);
+  if (!m) throw new Error('원본을 찾지 못했습니다.');
+  const kind = edited.kind ?? m.kind;
+  let outId = id;
+  await db.transaction('rw', db.media, db.folderReviews, async () => {
+    if (mode === 'replace' && kind === m.kind) {
+      await db.media.update(id, { blob: edited.blob, thumbBlob: edited.thumbBlob, mimeType: edited.mimeType, durationMs: edited.durationMs, sizeBytes: edited.blob.size, compressedBlob: null, purgedAt: null });
+    } else {
+      outId = ulid();
+      const takenAt = new Date(new Date(m.takenAt).getTime() + 1).toISOString();
+      await db.media.add({
+        id: outId, sessionId: m.sessionId, kind, takenAt, blob: edited.blob, thumbBlob: edited.thumbBlob, mimeType: edited.mimeType,
+        durationMs: edited.durationMs, sizeBytes: edited.blob.size, dogIds: [...m.dogIds], aCutDogIds: [], reviewStatus: m.reviewStatus,
+        uploadStatus: 'queued', uploadAttempts: 0, remoteId: null,
+      });
+    }
+    await clearFolderReviewed(m.dogIds);
+  });
+  return outId;
+}
+
 export async function saveCompressedVideo(id: string, blob: Blob): Promise<void> {
   await db.media.update(id, { compressedBlob: blob });
 }

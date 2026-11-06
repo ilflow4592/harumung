@@ -7,8 +7,8 @@ import { useObjectUrl } from './ui';
  * 사진·영상 크게 보기. 좌우로 넘기고(터치·화살표), ✕로 닫는다.
  * 원본이 정리된 항목은 썸네일을 크게 보여주고 표시만 한다.
  */
-export function MediaViewer({ items, index, dogs, onClose, onIndexChange }: {
-  items: MediaItem[]; index: number; dogs: Dog[]; onClose: () => void; onIndexChange: (i: number) => void;
+export function MediaViewer({ items, index, dogs, onClose, onIndexChange, onEdit }: {
+  items: MediaItem[]; index: number; dogs: Dog[]; onClose: () => void; onIndexChange: (i: number) => void; onEdit?: (item: MediaItem) => void;
 }) {
   const item = items[index];
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -51,7 +51,11 @@ export function MediaViewer({ items, index, dogs, onClose, onIndexChange }: {
       <div className="viewer__top">
         <button type="button" className="cam__round" aria-label="닫기" onClick={onClose}>✕</button>
         <span className="viewer__counter">{index + 1} / {items.length}</span>
-        <span className="cam__round" style={{ visibility: 'hidden' }} />
+        {onEdit && item.blob ? (
+          <button type="button" className="cam__round" style={{ fontSize: 12 }} onClick={() => onEdit(item)}>편집</button>
+        ) : (
+          <span className="cam__round" style={{ visibility: 'hidden' }} />
+        )}
       </div>
       <div className="viewer__stage" style={{ transform: `translateX(${drag}px)`, transition: drag ? 'none' : 'transform 160ms ease-out' }}>
         <Stage key={item.id} item={item} />
