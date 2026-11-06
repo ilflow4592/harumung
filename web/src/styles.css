@@ -1,13 +1,14 @@
-/* 하루멍 색 토큰. 디자인 캔버스의 색상 템플릿과 같다. */
+/* 하루멍 색 토큰. 아이콘(크림·허니·브라운·오렌지)과 같은 톤.
+   변수 이름 --mint*는 역사적 이름이고 값은 브랜드 오렌지·허니·크림이다. */
 :root {
   --white: #ffffff;
-  --surface: #f6faf9;
-  --line: #e5e7eb;
-  --text: #111827;
-  --text-2: #4b5563;
-  --mint: #0b7a6b;
-  --mint-mid: #5fd3c0;
-  --mint-light: #d7f3ee;
+  --surface: #fff8ec;
+  --line: #efe3cf;
+  --text: #3f2a14;
+  --text-2: #7a6247;
+  --mint: #c9641b;
+  --mint-mid: #f6c46b;
+  --mint-light: #ffe9cc;
   --blue: #2563eb;
   --blue-dark: #1d4ed8;
   --blue-mid: #93c5fd;
@@ -15,8 +16,8 @@
   --pink: #c2256d;
   --pink-mid: #f9a8d4;
   --pink-light: #fce7f3;
-  --gray: #f3f4f6;
-  --overlay: rgba(17, 24, 39, 0.55);
+  --gray: #f6efe3;
+  --overlay: rgba(63, 42, 20, 0.55);
   --r-card: 16px;
   --r-control: 12px;
   --safe-top: env(safe-area-inset-top, 0px);

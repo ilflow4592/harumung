@@ -45,7 +45,7 @@ async function fakeVideo(label: string, seconds = 3): Promise<{ blob: Blob; mime
   await new Promise<void>((resolve) => {
     const frame = () => {
       const t = (performance.now() - t0) / 1000;
-      ctx.fillStyle = '#0B7A6B'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#C9641B'; ctx.fillRect(0, 0, c.width, c.height);
       ctx.fillStyle = '#fff'; ctx.font = '160px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('🐕', 640 + Math.sin(t * 3) * 300, 360);
       ctx.font = 'bold 48px system-ui'; ctx.fillText(label, 640, 620);
