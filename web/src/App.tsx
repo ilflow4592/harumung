@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
-import { refreshPersonProps, track, trackPageview } from './lib/analytics';
+import { initPartnerFromUrl, refreshPersonProps, track, trackPageview } from './lib/analytics';
 import { runAutoPurge } from './lib/autoPurge';
 
 import { AttendanceScreen } from './screens/Attendance';
@@ -23,7 +23,8 @@ export default function App() {
   useEffect(() => { trackPageview(location.pathname + location.search); }, [location.pathname, location.search]);
   // 앱을 열 때 하루 한 번, 보낸 지 N일 지난 원본 정리
   useEffect(() => {
-    track('app_opened');
+    const partner = initPartnerFromUrl();
+    track('app_opened', { has_partner: !!partner });
     refreshPersonProps();
     runAutoPurge().then((r) => {
       if (r) track('auto_purge_ran', { count: r.count, freed_bytes: r.freed });

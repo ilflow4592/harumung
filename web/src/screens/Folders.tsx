@@ -8,7 +8,7 @@ import { Chip, DogAvatar, InstallHint, SexBadge } from '../components/ui';
 import type { Dog } from '../db/db';
 import { DateNav, useDateParam } from '../components/DateNav';
 import { listAttendedDogIds, listFolders } from '../db/repo';
-import { track } from '../lib/analytics';
+import { getPartner, track } from '../lib/analytics';
 import { localDate, relativeLabel } from '../lib/dates';
 
 export function FoldersScreen() {
@@ -60,6 +60,15 @@ export function FoldersScreen() {
 
       <main className="body" style={{ paddingBottom: 100 }}>
         <InstallHint />
+        {!getPartner() ? (
+          <Link to="/settings#partner" className="card card--row" style={{ color: 'inherit', borderStyle: 'dashed' }}>
+            <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span className="title">유치원 코드가 없어요</span>
+              <span className="sub">받은 링크로 다시 열거나, 설정에서 코드를 넣어 주세요</span>
+            </span>
+            <Chip label="설정" tone="gray" />
+          </Link>
+        ) : null}
         <Link to={`/attendance?d=${date}`} className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }}>
           <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span className="title">오늘 등원 {hasAttendance ? `${attended.length}마리` : '체크'}</span>

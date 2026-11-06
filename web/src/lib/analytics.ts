@@ -55,6 +55,46 @@ export function refreshPersonProps(extra?: Props): void {
   try { posthog.people.set({ standalone: isStandalone(), app_version: APP_VERSION, ...extra }); } catch { /* 무시 */ }
 }
 
+// ---- 파트너(유치원) 코드 ----
+// 링크 `?u=코드`로 열면 저장하고, 그 코드로 PostHog 사람을 묶는다. 모든 이벤트에 partner 속성이 붙는다.
+// 아이폰은 사파리와 홈 화면 앱의 저장소가 달라서, 설치된 앱에서는 설정에서 직접 입력할 수 있게 둔다.
+const PARTNER_KEY = 'harumung.partner';
+
+export function getPartner(): string | null {
+  try { return localStorage.getItem(PARTNER_KEY); } catch { return null; }
+}
+
+export function setPartner(code: string | null): void {
+  const clean = (code ?? '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40) || null;
+  try { if (clean) localStorage.setItem(PARTNER_KEY, clean); else localStorage.removeItem(PARTNER_KEY); } catch { /* 무시 */ }
+  if (!enabled) return;
+  try {
+    if (clean) {
+      posthog.identify(clean, { partner: clean });
+      posthog.register({ partner: clean });
+    } else {
+      posthog.unregister('partner');
+      posthog.reset();
+    }
+  } catch { /* 무시 */ }
+}
+
+/** 앱 진입 시: URL의 u 파라미터가 있으면 저장, 없으면 저장된 코드로 identify. 주소에서 파라미터는 지운다. */
+export function initPartnerFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = params.get('u') ?? params.get('partner');
+  if (fromUrl) {
+    setPartner(fromUrl);
+    params.delete('u'); params.delete('partner');
+    const q = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : '') + window.location.hash);
+  } else {
+    const stored = getPartner();
+    if (stored) setPartner(stored);
+  }
+  return getPartner();
+}
+
 /** 소요 시간 측정용. */
 export function timer(): () => number {
   const t0 = performance.now();

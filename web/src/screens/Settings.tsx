@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TopBar } from '../components/ui';
 import { emptyTrash, listActiveDogs, listPurgeCandidates, purgeOriginals, storageStats, wipeAll } from '../db/repo';
 import { PURGE_OPTIONS, getPurgeDays, isIOS, isStandalone, requestPersistentStorage, setPurgeDays } from '../lib/settings';
-import { track } from '../lib/analytics';
+import { getPartner, setPartner, track } from '../lib/analytics';
 import { formatBytes } from '../lib/share';
 
 /** 설정: 저장공간·자동 정리·홈 화면 설치·앱 정보. 서버 없는 동안 폰 저장공간 관리가 핵심. */
@@ -18,6 +18,14 @@ export function SettingsScreen() {
   const { data: candidates = [] } = useQuery({ queryKey: ['purge-candidates', purgeDays], queryFn: () => listPurgeCandidates(purgeDays || 0), enabled: purgeDays > 0 });
   const { data: candidatesNow = [] } = useQuery({ queryKey: ['purge-candidates', 0], queryFn: () => listPurgeCandidates(0) });
   const [persisted, setPersisted] = useState<boolean | null>(null);
+  const [partner, setPartnerInput] = useState(getPartner() ?? '');
+  const savePartner = () => {
+    setPartner(partner);
+    const saved = getPartner();
+    setPartnerInput(saved ?? '');
+    track('partner_code_set', { has_code: !!saved, via: 'settings' });
+    setMsg(saved ? `유치원 코드 "${saved}" 저장됐어요` : '유치원 코드를 지웠어요');
+  };
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -161,6 +169,14 @@ export function SettingsScreen() {
 
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div className="title">앱 정보</div>
+          <div className="field" id="partner">
+            <label className="label" htmlFor="partner-code">유치원 코드</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input id="partner-code" className="input" value={partner} onChange={(e) => setPartnerInput(e.target.value)} placeholder="받은 링크의 u= 뒤 값" autoCapitalize="none" autoCorrect="off" />
+              <button type="button" className="btn" style={{ width: 'auto', padding: '0 16px' }} onClick={savePartner}>저장</button>
+            </div>
+            <span className="sub">어느 유치원에서 쓰는지 구분하는 용도예요. 링크로 열었으면 자동으로 들어가 있어요.</span>
+          </div>
           <table className="kv">
             <tbody>
               <tr><td>버전</td><td></td><td>0.1 (테스트)</td></tr>
