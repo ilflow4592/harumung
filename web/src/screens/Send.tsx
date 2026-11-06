@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
-import { listActiveDogs, listContacts, listDogKeptOn, listReviewedDogIds, listSentDogIds, localDate, markSent } from '../db/repo';
+import { DateNav, useDateParam } from '../components/DateNav';
+import { listActiveDogs, listContacts, listDogKeptOn, listReviewedDogIds, listSentDogIds, markSent } from '../db/repo';
 import { canShareFiles, downloadFiles, formatBytes, getPreparedFiles, prepareKey, shareFiles, splitBatches, toShareFiles, type PrepareProgress } from '../lib/share';
 import { unlockAudio } from '../lib/videoCompress';
 
@@ -28,7 +29,7 @@ function dateLabel(date: string): string {
  */
 export function SendScreen() {
   const navigate = useNavigate();
-  const date = localDate();
+  const [date, setDate] = useDateParam();
   const { data: dogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
   const { data: reviewed = [] } = useQuery({ queryKey: ['folder-reviews', date], queryFn: () => listReviewedDogIds(date) });
   const { data: sent = [] } = useQuery({ queryKey: ['send-logs', date], queryFn: () => listSentDogIds(date) });
@@ -61,7 +62,8 @@ export function SendScreen() {
         </button>
       </div>
       <main className="body" style={{ paddingBottom: 40 }}>
-        <span className="sub">{dateLabel(date)} · 검수 완료한 아이만 보여요. 보내기를 누르면 폰 공유 창이 뜨고, 카톡에서 보호자 채팅방을 고르면 돼요.</span>
+        <DateNav date={date} onChange={setDate} compact />
+        <span className="sub">검수 완료한 아이만 보여요. 보내기를 누르면 폰 공유 창이 뜨고, 카톡에서 보호자 채팅방을 고르면 돼요.</span>
         {ready.length === 0 ? (
           <div className="card">
             <div className="title">보낼 준비가 된 아이가 없어요</div>
@@ -156,7 +158,7 @@ function SendRow({ dog, date, sent, compressPhoto, compressVideo }: { dog: Dog; 
     }
   };
 
-  const openFolder = () => navigate(`/folders/${dog.id}`);
+  const openFolder = () => navigate(`/folders/${dog.id}?d=${date}`);
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: sent ? 0.7 : 1 }}>

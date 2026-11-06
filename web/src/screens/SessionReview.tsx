@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { MediaViewer } from '../components/MediaViewer';
 import { DogAvatar, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
 import { finishSessionReview, listActiveDogs, listAttendedDogIds, listSessionMedia, localDate } from '../db/repo';
@@ -34,6 +35,8 @@ export function SessionReviewScreen() {
   const [target, setTarget] = useState<string | null>(null);
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
+  const openView = (m: MediaItem) => setViewIndex(items.findIndex((x) => x.id === m.id));
 
   const dogIdsOf = (m: MediaItem) => assign[m.id] ?? m.dogIds;
 
@@ -107,7 +110,7 @@ export function SessionReviewScreen() {
       {mode === 'delete' ? (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px 0' }}>
-            <span className="sub" style={{ flex: 1 }}>지울 사진만 탭하세요. 나머지는 모두 저장돼요</span>
+            <span className="sub" style={{ flex: 1 }}>지울 사진만 탭하세요. 길게 누르면 크게 보여요</span>
             <button type="button" className="btn btn--ghost btn--small" onClick={() => setDeleted(new Set())}>전체 가져가기</button>
           </div>
           <main className="body" style={{ gap: 14, paddingBottom: 140 }}>
@@ -126,7 +129,7 @@ export function SessionReviewScreen() {
                   )}
                 </div>
                 <div className="grid4">
-                  {s.media.map((m) => <DeleteCell key={m.id} m={m} deleted={deleted.has(m.id)} onToggle={() => toggleDelete(m.id)} />)}
+                  {s.media.map((m) => <DeleteCell key={m.id} m={m} deleted={deleted.has(m.id)} onToggle={() => toggleDelete(m.id)} onView={() => openView(m)} />)}
                 </div>
               </section>
             ))}
@@ -172,6 +175,8 @@ export function SessionReviewScreen() {
         </>
       )}
 
+      {viewIndex !== null ? <MediaViewer items={items} index={viewIndex} dogs={allDogs} onClose={() => setViewIndex(null)} onIndexChange={setViewIndex} /> : null}
+
       <footer className="footer footer--surface">
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
           <b>
@@ -189,10 +194,23 @@ export function SessionReviewScreen() {
   );
 }
 
-function DeleteCell({ m, deleted, onToggle }: { m: MediaItem; deleted: boolean; onToggle: () => void }) {
+function DeleteCell({ m, deleted, onToggle, onView }: { m: MediaItem; deleted: boolean; onToggle: () => void; onView: () => void }) {
   const url = useObjectUrl(m.thumbBlob ?? m.blob);
+  const timer = useRef<number | undefined>(undefined);
+  const fired = useRef(false);
+  const start = () => { fired.current = false; timer.current = window.setTimeout(() => { fired.current = true; onView(); }, 450); };
+  const cancel = () => window.clearTimeout(timer.current);
   return (
-    <button type="button" className={`cell ${deleted ? 'cell--deleted' : ''}`} onClick={onToggle} aria-pressed={deleted}>
+    <button
+      type="button"
+      className={`cell ${deleted ? 'cell--deleted' : ''}`}
+      aria-pressed={deleted}
+      onClick={() => { if (!fired.current) onToggle(); }}
+      onTouchStart={start}
+      onTouchEnd={cancel}
+      onTouchMove={cancel}
+      onContextMenu={(e) => { e.preventDefault(); onView(); }}
+    >
       {url ? <img src={url} alt="" /> : null}
       {m.kind === 'VIDEO' ? <span className="cell__dur">{Math.round((m.durationMs ?? 0) / 1000)}초</span> : null}
       {deleted ? <span className="cell__del">✕</span> : null}

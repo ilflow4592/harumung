@@ -2,9 +2,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { DateNav, useDateParam } from '../components/DateNav';
+import { MediaViewer } from '../components/MediaViewer';
 import { DogAvatar, SexBadge, TopBar, useObjectUrl } from '../components/ui';
 import type { Dog, MediaItem } from '../db/db';
-import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKept, listReviewedDogIds, listUnassignedKept, localDate, removeDogFromMedia, setFolderReviewed } from '../db/repo';
+import { addDogsToMedia, deleteMedia, listActiveDogs, listAttendedDogIds, listDogKeptOn, listReviewedDogIds, listUnassignedKept, localDate, removeDogFromMedia, setFolderReviewed } from '../db/repo';
 
 const UNASSIGNED = 'unassigned';
 
@@ -20,12 +22,15 @@ export function FolderReviewScreen() {
 
   const { data: dogs = [] } = useQuery({ queryKey: ['dogs'], queryFn: listActiveDogs });
   const folderDog = dogs.find((d) => d.id === dogId) ?? null;
+  const [date, setDate] = useDateParam();
   const { data: items = [] } = useQuery({
-    queryKey: isUnassigned ? ['unassigned-kept'] : ['dog-kept', dogId],
-    queryFn: () => (isUnassigned ? listUnassignedKept() : listDogKept(dogId)),
+    queryKey: isUnassigned ? ['unassigned-kept'] : ['dog-kept', dogId, date],
+    queryFn: () => (isUnassigned ? listUnassignedKept() : listDogKeptOn(dogId, date)),
   });
 
-  const date = localDate();
+  // 보기 모드: 탭하면 크게. 선택 모드: 탭하면 체크. 선택이 하나라도 있으면 선택 모드 유지.
+  const [selecting, setSelecting] = useState(isUnassigned);
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
   const { data: reviewedIds = [] } = useQuery({ queryKey: ['folder-reviews', date], queryFn: () => listReviewedDogIds(date) });
   const reviewed = !isUnassigned && reviewedIds.includes(dogId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -40,6 +45,11 @@ export function FolderReviewScreen() {
 
   const toggle = (id: string) =>
     setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const onCellTap = (i: number) => {
+    if (selecting) toggle(items[i].id);
+    else setViewIndex(i);
+  };
+  const exitSelect = () => { setSelected(new Set()); setSelecting(false); };
 
   const refresh = async () => {
     await Promise.all([
@@ -103,6 +113,7 @@ export function FolderReviewScreen() {
   };
 
   const title = isUnassigned ? '미지정 사진' : `${folderDog?.name ?? ''} 폴더`;
+  const today = localDate();
 
   return (
     <div className="screen">
@@ -111,32 +122,42 @@ export function FolderReviewScreen() {
         onBack={() => navigate(-1)}
         right={
           items.length > 0 ? (
-            <button type="button" className="btn btn--ghost btn--small" onClick={() => setSelected(selected.size === items.length ? new Set() : new Set(items.map((m) => m.id)))}>
-              {selected.size === items.length ? '전체 해제' : '전체 선택'}
-            </button>
+            selecting ? (
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button type="button" className="btn btn--ghost btn--small" onClick={() => setSelected(selected.size === items.length ? new Set() : new Set(items.map((m) => m.id)))}>
+                  {selected.size === items.length ? '전체 해제' : '전체 선택'}
+                </button>
+                {!isUnassigned ? <button type="button" className="btn btn--ghost btn--small" onClick={exitSelect}>완료</button> : null}
+              </div>
+            ) : (
+              <button type="button" className="btn btn--outline btn--small" onClick={() => setSelecting(true)}>선택</button>
+            )
           ) : null
         }
       />
       <main className="body" style={{ paddingBottom: 120 }}>
+        {!isUnassigned ? <DateNav date={date} onChange={setDate} compact /> : null}
         {items.length === 0 ? (
           <div className="card">
             <div className="title">{isUnassigned ? '미지정 사진이 없어요' : '아직 사진이 없어요'}</div>
             <div className="sub">{isUnassigned ? '모든 사진에 강아지가 정해졌어요' : '촬영 시작에서 이 아이를 골라 찍어 보세요'}</div>
           </div>
         ) : (
-          <span className="sub">{isUnassigned ? '사진을 고른 뒤 아래에서 강아지를 정하세요' : '사진을 고르면 다른 아이 추가·폴더에서 빼기·삭제를 할 수 있어요'} · {items.length}개</span>
+          <span className="sub">{isUnassigned ? '사진을 고른 뒤 아래에서 강아지를 정하세요' : selecting ? '사진을 고르면 다른 아이 추가·폴더에서 빼기·삭제를 할 수 있어요' : '탭하면 크게 보여요. 오른쪽 위 선택으로 옮기기·삭제'} · {items.length}개</span>
         )}
         {reviewed ? (
           <div className="card card--row" style={{ borderColor: 'var(--mint)', background: 'var(--mint-light)', color: 'var(--mint)' }}>
             <span className="check check--on">✓</span>
             <span style={{ flex: 1, fontWeight: 700 }}>검수 완료 · 발송 준비됐어요</span>
-            <span className="sub" style={{ color: 'var(--mint)' }}>새 사진이 들어오면 풀려요</span>
+            {date === today ? <span className="sub" style={{ color: 'var(--mint)' }}>새 사진이 들어오면 풀려요</span> : null}
           </div>
         ) : null}
         <div className="grid3">
-          {items.map((m) => <Cell key={m.id} m={m} dogs={dogs} selected={selected.has(m.id)} onToggle={() => toggle(m.id)} />)}
+          {items.map((m, i) => <Cell key={m.id} m={m} dogs={dogs} selected={selected.has(m.id)} selecting={selecting} onTap={() => onCellTap(i)} />)}
         </div>
       </main>
+
+      {viewIndex !== null ? <MediaViewer items={items} index={viewIndex} dogs={dogs} onClose={() => setViewIndex(null)} onIndexChange={setViewIndex} /> : null}
 
       {selected.size > 0 ? (
         <footer className="footer">
@@ -154,7 +175,7 @@ export function FolderReviewScreen() {
           {reviewed ? (
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" className="btn btn--ghost" style={{ flex: 1 }} disabled={busy} onClick={toggleReviewed}>검수 다시 열기</button>
-              <button type="button" className="btn" style={{ flex: 1.4 }} onClick={() => navigate('/send')}>보호자에게 보내기</button>
+              <button type="button" className="btn" style={{ flex: 1.4 }} onClick={() => navigate(`/send?d=${date}`)}>보호자에게 보내기</button>
             </div>
           ) : (
             <button type="button" className="btn" disabled={busy} onClick={toggleReviewed}>검수 완료 · 발송 준비</button>
@@ -168,13 +189,15 @@ export function FolderReviewScreen() {
   );
 }
 
-function Cell({ m, dogs, selected, onToggle }: { m: MediaItem; dogs: Dog[]; selected: boolean; onToggle: () => void }) {
+function Cell({ m, dogs, selected, selecting, onTap }: { m: MediaItem; dogs: Dog[]; selected: boolean; selecting: boolean; onTap: () => void }) {
   const url = useObjectUrl(m.thumbBlob ?? m.blob);
   const names = m.dogIds.map((id) => dogs.find((d) => d.id === id)?.name ?? '?');
   return (
-    <button type="button" className={`cell ${selected ? 'cell--on' : ''}`} onClick={onToggle} aria-pressed={selected}>
+    <button type="button" className={`cell ${selected ? 'cell--on' : ''}`} onClick={onTap} aria-pressed={selecting ? selected : undefined}>
       {url ? <img src={url} alt="" /> : null}
       {m.kind === 'VIDEO' ? <span className="cell__dur">{Math.round((m.durationMs ?? 0) / 1000)}초</span> : null}
+      {m.purgedAt ? <span className="cell__tag">정리됨</span> : null}
+      {selecting && !selected ? <span className="cell__ring" /> : null}
       {selected ? <span className="cell__check">✓</span> : null}
       {names.length > 1 ? <span className="cell__names">{names.length <= 2 ? names.join('·') : `${names[0]} 외 ${names.length - 1}`}</span> : null}
     </button>

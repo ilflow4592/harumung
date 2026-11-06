@@ -6,23 +6,17 @@ import { DogSheet } from '../components/DogSheet';
 import { matchesName, SearchBox } from '../components/SearchBox';
 import { Chip, DogAvatar, InstallHint, SexBadge } from '../components/ui';
 import type { Dog } from '../db/db';
-import { listAttendedDogIds, listTodayFolders, localDate } from '../db/repo';
-
-function todayLabel(): string {
-  const d = new Date();
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
-}
+import { DateNav, useDateParam } from '../components/DateNav';
+import { listAttendedDogIds, listFolders } from '../db/repo';
+import { localDate, relativeLabel } from '../lib/dates';
 
 export function FoldersScreen() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<Dog | null>(null);
-  const { data } = useQuery({
-    queryKey: ['folders', new Date().toISOString().slice(0, 10)],
-    queryFn: () => listTodayFolders(new Date().toISOString()),
-  });
-  const date = localDate();
+  const [date, setDate] = useDateParam();
+  const isToday = date === localDate();
+  const { data } = useQuery({ queryKey: ['folders', date], queryFn: () => listFolders(date) });
   const { data: attended = [] } = useQuery({ queryKey: ['attendance', date], queryFn: () => listAttendedDogIds(date) });
   const attendedSet = useMemo(() => new Set(attended), [attended]);
   const [showAbsent, setShowAbsent] = useState(false);
@@ -41,8 +35,7 @@ export function FoldersScreen() {
       <header className="topbar" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 14, padding: 'calc(var(--safe-top) + 12px) 20px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div className="sub" style={{ fontWeight: 500 }}>{todayLabel()}</div>
-            <h1 style={{ fontSize: 22 }}>오늘 폴더</h1>
+            <h1 style={{ fontSize: 22 }}>{relativeLabel(date) ?? '지난'} 폴더</h1>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
             <Link to="/settings" className="icon-btn" aria-label="설정" style={{ fontSize: 22 }}>⚙</Link>
@@ -52,14 +45,15 @@ export function FoldersScreen() {
         <div className="stats">
           <div className="stat" style={{ background: 'var(--surface)' }}><span className="sub">촬영</span><b>{total}</b></div>
           <div className="stat" style={{ background: 'var(--pink-light)', color: 'var(--pink)' }}><span style={{ fontSize: 12 }}>미지정</span><b>{unassigned}</b></div>
-          <Link to="/send" className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>발송 준비 →</span><b>{perDog.filter((f) => f.reviewed && !f.sent).length}</b></Link>
+          <Link to={`/send?d=${date}`} className="stat" style={{ background: 'var(--blue-light)', color: 'var(--blue-dark)' }}><span style={{ fontSize: 12 }}>발송 준비 →</span><b>{perDog.filter((f) => f.reviewed && !f.sent).length}</b></Link>
         </div>
+        <DateNav date={date} onChange={setDate} />
         <SearchBox value={query} onChange={setQuery} />
       </header>
 
       <main className="body" style={{ paddingBottom: 100 }}>
         <InstallHint />
-        <Link to="/attendance" className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }}>
+        <Link to={`/attendance?d=${date}`} className="card card--row" style={{ borderColor: 'var(--mint-mid)', color: 'inherit' }}>
           <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span className="title">오늘 등원 {hasAttendance ? `${attended.length}마리` : '체크'}</span>
             <span className="sub">{hasAttendance ? '카메라와 폴더에 오늘 온 아이만 보여요' : '체크하면 카메라에 오늘 온 아이만 떠요'}</span>
@@ -67,7 +61,7 @@ export function FoldersScreen() {
           <Chip label={hasAttendance ? '수정' : '체크하기'} tone="mint" />
         </Link>
         {unassigned > 0 && !query ? (
-          <Link to="/folders/unassigned" className="card card--row" style={{ borderColor: 'var(--pink-mid)', borderWidth: 1.5, color: 'inherit' }}>
+          <Link to={`/folders/unassigned?d=${date}`} className="card card--row" style={{ borderColor: 'var(--pink-mid)', borderWidth: 1.5, color: 'inherit' }}>
             <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <span className="title">미지정 사진 {unassigned}장</span>
               <span className="sub">강아지를 정하거나 지워 주세요</span>
@@ -110,16 +104,16 @@ export function FoldersScreen() {
 
       <footer className="footer footer--surface" style={{ borderTop: 0 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="btn" style={{ flex: 1.6 }} onClick={() => navigate('/camera')}>촬영 시작</button>
+          {isToday ? <button type="button" className="btn" style={{ flex: 1.6 }} onClick={() => navigate('/camera')}>촬영 시작</button> : <button type="button" className="btn btn--outline" style={{ flex: 1.6 }} onClick={() => setDate(localDate())}>오늘로 돌아가기</button>}
           {perDog.some((f) => f.reviewed && !f.sent) ? (
-            <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => navigate('/send')}>
+            <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => navigate(`/send?d=${date}`)}>
               보내기 ({perDog.filter((f) => f.reviewed && !f.sent).length})
             </button>
           ) : null}
         </div>
       </footer>
 
-      <DogSheet dog={picked} count={pickedCount} onClose={() => setPicked(null)} />
+      <DogSheet dog={picked} count={pickedCount} date={date} onClose={() => setPicked(null)} />
     </div>
   );
 }

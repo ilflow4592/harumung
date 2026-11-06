@@ -6,7 +6,7 @@ import { useCaptureStore } from '../store/capture';
 import { DogAvatar, SexBadge } from './ui';
 
 /** 강아지를 누르면 아래서 올라오는 메뉴. 촬영 시작은 그 강아지를 지정한 채 카메라로 간다. */
-export function DogSheet({ dog, count, onClose }: { dog: Dog | null; count?: number; onClose: () => void }) {
+export function DogSheet({ dog, count, date, onClose }: { dog: Dog | null; count?: number; date?: string; onClose: () => void }) {
   const navigate = useNavigate();
   const setSelected = useCaptureStore((s) => s.setSelected);
   const [closing, setClosing] = useState(false);
@@ -40,7 +40,7 @@ export function DogSheet({ dog, count, onClose }: { dog: Dog | null; count?: num
           </span>
         </div>
         <button type="button" className="btn" onClick={startShoot}>촬영 시작</button>
-        <button type="button" className="btn btn--outline" onClick={() => navigate(`/folders/${dog.id}`)}>사진 폴더 검수</button>
+        <button type="button" className="btn btn--outline" onClick={() => navigate(`/folders/${dog.id}${date ? `?d=${date}` : ''}`)}>사진 폴더 검수</button>
         <button type="button" className="btn btn--ghost" onClick={() => navigate(`/dogs/${dog.id}/edit`)}>정보 수정 · 퇴원</button>
         <button type="button" className="btn btn--ghost" onClick={close}>취소</button>
       </div>

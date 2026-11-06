@@ -4,11 +4,8 @@ import { db, type Dog, type GuardianContact, type MediaItem, type MediaKind, typ
 
 const now = () => new Date().toISOString();
 
-/** 기기 로컬 날짜 YYYY-MM-DD. 등원 체크 키로 쓴다. */
-export function localDate(d = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+export { localDate } from '../lib/dates';
+import { localDate } from '../lib/dates';
 
 // ---------- 강아지 ----------
 
@@ -331,15 +328,15 @@ export type FolderSummary = {
 };
 
 /** 오늘 폴더 목록: 강아지별 kept 개수 + 미지정 개수. */
-export async function listTodayFolders(dateIso: string): Promise<FolderSummary> {
-  const dayPrefix = dateIso.slice(0, 10);
-  const kept = (await db.media.where('reviewStatus').equals('kept').toArray()).filter((m) =>
-    m.takenAt.startsWith(dayPrefix),
+/** 날짜(로컬 YYYY-MM-DD)별 폴더 요약. */
+export async function listFolders(date: string): Promise<FolderSummary> {
+  const kept = (await db.media.where('reviewStatus').equals('kept').toArray()).filter(
+    (m) => localDate(new Date(m.takenAt)) === date,
   );
   const unassigned = kept.filter((m) => m.dogIds.length === 0).length;
   const dogs = await listActiveDogs();
-  const reviewed = new Set(await listReviewedDogIds(localDate()));
-  const sent = new Set(await listSentDogIds(localDate()));
+  const reviewed = new Set(await listReviewedDogIds(date));
+  const sent = new Set(await listSentDogIds(date));
   const perDog = dogs.map((dog) => {
     const mine = kept.filter((m) => m.dogIds.includes(dog.id));
     return { dog, count: mine.length, aCut: mine.filter((m) => m.aCutDogIds.includes(dog.id)).length, reviewed: reviewed.has(dog.id), sent: sent.has(dog.id) };
