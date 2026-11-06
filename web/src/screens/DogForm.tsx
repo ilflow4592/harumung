@@ -49,7 +49,7 @@ export function DogFormScreen() {
 
   const p1 = normalizePhone(phone1);
   const p2 = normalizePhone(phone2);
-  const valid = name.trim().length > 0 && sex !== null && isPhone(p1) && (p2.length === 0 || isPhone(p2));
+  const valid = name.trim().length > 0 && sex !== null && (p1.length === 0 || isPhone(p1)) && (p2.length === 0 || isPhone(p2));
 
   const onPickPhoto = async (file: File | undefined) => {
     setSheetOpen(false);
@@ -173,7 +173,7 @@ export function DogFormScreen() {
         </div>
 
         <div className="field">
-          <label className="label" htmlFor="phone1">보호자 연락처 <span className="required">*</span></label>
+          <label className="label" htmlFor="phone1">보호자 연락처 (선택)</label>
           <input id="phone1" className="input" type="tel" inputMode="tel" value={phone1} onChange={(e) => setPhone1(e.target.value)} placeholder="010-0000-0000" />
           {showPhone2 ? (
             <input className="input" type="tel" inputMode="tel" value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="두 번째 연락처" />

@@ -64,7 +64,7 @@ export function FoldersScreen() {
           <img src={`${import.meta.env.BASE_URL}icon-192.png`} alt="하루멍" width={132} height={132} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <b style={{ fontSize: 20 }}>첫 강아지를 등록해 볼까요?</b>
-            <span className="sub" style={{ fontSize: 14, lineHeight: 1.6 }}>이름, 성별, 보호자 연락처만 있으면 돼요.<br />등록한 아이는 촬영할 때 바로 고를 수 있어요.</span>
+            <span className="sub" style={{ fontSize: 14, lineHeight: 1.6 }}>이름과 성별만 있으면 돼요.<br />등록한 아이는 촬영할 때 바로 고를 수 있어요.</span>
           </div>
           <Link to="/dogs/new" className="btn" style={{ width: 'auto', padding: '0 32px' }}>강아지 등록</Link>
           <Link to="/guide" className="sub" style={{ fontWeight: 700, color: 'var(--mint)' }} onClick={() => track('guide_opened', { from: 'empty' })}>사용 안내 먼저 보기</Link>
