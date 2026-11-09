@@ -13,6 +13,9 @@
 | `auto_purge_ran` | 앱 진입 시 자동 정리 실행 | `count`, `freed_bytes` |
 | `guide_opened` | 사용 안내 진입 | `from`(folders/settings) |
 | `guide_section_jumped` | 안내 목차 탭 | `section` |
+| `guide_comic_started` | 안내 맨 위 8컷 만화의 2컷이 60% 이상 보이는 상태로 400ms 머묾 (1컷은 자동 노출이라 제외) | |
+| `guide_comic_viewed` | 8컷 통과 | `seconds`(2컷→8컷), `panels_seen`(0~8), `skimmed`(4초 미만이면 true) |
+| `guide_comic_abandoned` | 시작했지만 8컷 전에 안내를 떠남 (라우트 이동 시. 탭 종료는 누락 가능) | `max_panel`, `seconds` |
 | `search_used` | 검색창 첫 글자 입력 | `screen` |
 | `date_changed` | 날짜 이동 | `screen`, `offset_days` |
 | `absent_toggled` | 안 온 아이 펼침/접기 | `show` |

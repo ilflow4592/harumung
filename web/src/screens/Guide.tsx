@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { TopBar } from '../components/ui';
@@ -37,8 +37,60 @@ const TOC = [
   ['feedback', '9. 피드백 보내기'],
 ] as const;
 
+/** 컷을 "봤다"고 치는 기준: 60% 이상 보이는 상태로 400ms 연속, 이미지 로드 완료, 탭이 보이는 상태. */
+const COMIC_RATIO = 0.6;
+const COMIC_DWELL_MS = 400;
+/** 2컷→8컷이 이 시간보다 빠르면 읽지 않고 넘긴 것으로 표시. */
+const COMIC_SKIM_SEC = 4;
+
+/**
+ * 만화 열람 이벤트 3종. 1컷은 안내를 열면 자동으로 보이므로 2컷부터 "읽기 시작"으로 센다.
+ * - guide_comic_started: 2컷 통과
+ * - guide_comic_viewed: 8컷 통과 (seconds, panels_seen, skimmed)
+ * - guide_comic_abandoned: 시작했지만 8컷 전에 화면 이탈 (max_panel, seconds)
+ */
+function useComicViewTracking() {
+  useEffect(() => {
+    const imgs = [...document.querySelectorAll<HTMLImageElement>('.guide__comic-strip img')];
+    if (imgs.length === 0) return;
+    const seen = new Set<number>();
+    const timers = new Map<number, number>();
+    let startedAt = 0;
+    let done = false;
+    const passed = (i: number) => {
+      seen.add(i);
+      if (i === 1 && !startedAt) { startedAt = Date.now(); track('guide_comic_started'); }
+      if (i === imgs.length - 1 && !done) {
+        done = true;
+        const s = startedAt ? (Date.now() - startedAt) / 1000 : 0;
+        track('guide_comic_viewed', { seconds: Math.round(s), panels_seen: seen.size, skimmed: s < COMIC_SKIM_SEC });
+      }
+    };
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const img = e.target as HTMLImageElement;
+        const i = imgs.indexOf(img);
+        window.clearTimeout(timers.get(i));
+        if (seen.has(i)) continue;
+        const ok = e.isIntersecting && e.intersectionRatio >= COMIC_RATIO && img.complete && img.naturalWidth > 0 && document.visibilityState === 'visible';
+        if (ok) timers.set(i, window.setTimeout(() => passed(i), COMIC_DWELL_MS));
+      }
+    }, { threshold: [COMIC_RATIO] });
+    // 지연 로드 컷은 화면에 들어온 뒤 로드가 끝나도 observer가 다시 안 불린다. 로드 시점에 재관찰.
+    const reobserve = (ev: Event) => { const img = ev.target as HTMLImageElement; io.unobserve(img); io.observe(img); };
+    for (const img of imgs) { img.addEventListener('load', reobserve); io.observe(img); }
+    return () => {
+      io.disconnect();
+      timers.forEach((t) => window.clearTimeout(t));
+      imgs.forEach((img) => img.removeEventListener('load', reobserve));
+      if (startedAt && !done) track('guide_comic_abandoned', { max_panel: Math.max(...seen) + 1, seconds: Math.round((Date.now() - startedAt) / 1000) });
+    };
+  }, []);
+}
+
 export function GuideScreen() {
   const navigate = useNavigate();
+  useComicViewTracking();
   return (
     <div className="screen">
       <TopBar title="사용 안내" onBack={() => navigate(-1)} />

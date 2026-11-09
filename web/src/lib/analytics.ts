@@ -42,6 +42,8 @@ export function initAnalytics(): void {
 type Props = Record<string, string | number | boolean | null | undefined>;
 
 export function track(event: string, props?: Props): void {
+  // 개발 빌드 전용: 테스트에서 이벤트를 관찰할 수 있게 DOM 이벤트로도 흘린다. 배포 빌드에선 제거된다.
+  if (import.meta.env.DEV) window.dispatchEvent(new CustomEvent('harumung:track', { detail: { event, props: props ?? null } }));
   if (!enabled) return;
   try { posthog.capture(event, props); } catch { /* 추적 실패는 앱 동작에 영향 없음 */ }
 }
