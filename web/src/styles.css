@@ -415,3 +415,7 @@ a.stat { color: inherit; }
 .fb-add { width: 84px; height: 84px; border-radius: 10px; border: 2px dashed var(--mint-mid); background: var(--surface); color: var(--mint); font-weight: 700; font-size: 22px; line-height: 1.1; }
 .fb-add small { font-size: 11px; font-weight: 500; }
 select.input { appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%); background-position: calc(100% - 18px) 20px, calc(100% - 13px) 20px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
+.guide__comic { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.guide__comic h3 { margin: 8px 0 4px; }
+.guide__comic-strip { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+.guide__comic-strip img { width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid var(--line); }
