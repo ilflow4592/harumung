@@ -82,21 +82,32 @@ export function SessionReviewScreen() {
   };
 
   /** 미지정 전부를 고른 강아지에게. */
+  /** 현재 배정 상태에 "미지정 전부 → target"을 적용한 새 배정 맵. */
+  const withUnassignedFilled = (base: Record<string, string[]>, dogId: string) => {
+    const next = { ...base };
+    for (const m of items) if ((next[m.id] ?? m.dogIds).length === 0 && !deleted.has(m.id)) next[m.id] = [dogId];
+    return next;
+  };
   const fillUnassigned = () => {
     if (!target) return;
     track('unassigned_fill_all', { count: unassignedCount });
-    setAssign((prev) => {
-      const next = { ...prev };
-      for (const m of items) if (dogIdsOf(m).length === 0 && !deleted.has(m.id)) next[m.id] = [target];
-      return next;
-    });
+    setAssign((prev) => withUnassignedFilled(prev, target));
   };
 
   const save = async () => {
     if (!sessionId) return;
     if (deleted.size > 0 && !window.confirm(`${deleted.size}개를 삭제할까요? 삭제는 되돌릴 수 없어요.`)) return;
-    await finishSessionReview(sessionId, items.filter((m) => !deleted.has(m.id)).map((m) => m.id), assign);
-    track('session_review_saved', { kept: items.length - deleted.size, deleted: deleted.size, assign_changes: Object.keys(assign).length, unassigned_left: unassignedCount, used_assign_tab: Object.keys(assign).length > 0 });
+    // 강아지만 고르고 사진을 안 탭한 채 저장하면 전부 미지정으로 남는다. 의도인지 한 번 묻는다.
+    let finalAssign = assign;
+    let guardApplied = false;
+    if (mode === 'assign' && targetDog && unassignedCount > 0 && Object.keys(assign).length === 0) {
+      guardApplied = window.confirm(`미지정 ${unassignedCount}장을 ${targetDog.name}에게 배정할까요?\n취소하면 미지정으로 저장돼요.`);
+      track('assign_guard_shown', { count: unassignedCount, applied: guardApplied });
+      if (guardApplied) finalAssign = withUnassignedFilled(assign, targetDog.id);
+    }
+    const unassignedLeft = items.filter((m) => (finalAssign[m.id] ?? m.dogIds).length === 0 && !deleted.has(m.id)).length;
+    await finishSessionReview(sessionId, items.filter((m) => !deleted.has(m.id)).map((m) => m.id), finalAssign);
+    track('session_review_saved', { kept: items.length - deleted.size, deleted: deleted.size, assign_changes: Object.keys(finalAssign).length, unassigned_left: unassignedLeft, used_assign_tab: Object.keys(finalAssign).length > 0, guard_applied: guardApplied });
     await qc.invalidateQueries({ queryKey: ['folders'] });
     reset();
     navigate('/folders', { replace: true });
@@ -168,9 +179,6 @@ export function SessionReviewScreen() {
               <button type="button" className={`btn btn--small ${onlyUnassigned ? '' : 'btn--ghost'}`} onClick={() => setOnlyUnassigned((v) => !v)}>
                 미지정만 {unassignedCount}장
               </button>
-              {targetDog && unassignedCount > 0 ? (
-                <button type="button" className="btn btn--small btn--outline" onClick={fillUnassigned}>미지정 전부 → {targetDog.name}</button>
-              ) : null}
             </div>
           </div>
           <main className="body" style={{ paddingBottom: 140 }}>
@@ -194,6 +202,11 @@ export function SessionReviewScreen() {
           </b>
           <span className="sub">{Object.keys(assign).length > 0 ? `배정 변경 ${Object.keys(assign).length}장` : '삭제는 되돌릴 수 없어요'}</span>
         </div>
+        {mode === 'assign' && targetDog && unassignedCount > 0 ? (
+          <button type="button" className="btn btn--outline" style={{ borderColor: 'var(--mint)', color: 'var(--mint)' }} onClick={fillUnassigned}>
+            미지정 {unassignedCount}장 전부 → {targetDog.name}
+          </button>
+        ) : null}
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="btn btn--outline" style={{ flex: 1 }} onClick={() => { track('session_review_continue', { items: items.length }); navigate('/camera', { replace: true }); }}>계속 촬영</button>
           <button type="button" className="btn" style={{ flex: 1.6 }} onClick={save}>저장하고 폴더로</button>
