@@ -11,3 +11,4 @@ build/
 ios/Pods/
 web/dist/
 web/dev-dist/
+web/public/__demo/

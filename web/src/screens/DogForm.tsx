@@ -71,11 +71,13 @@ export function DogFormScreen() {
     if (albumInput.current) albumInput.current.value = '';
   };
 
+  /** 돌아갈 화면(폴더·강아지 목록)은 지금 떠 있지 않아 기본 무효화로는 다시 불러오지 않는다.
+   *  refetchType 'all'로 비활성 쿼리까지 즉시 갱신해, 돌아갔을 때 빈 캐시로 첫 실행 화면이 깜빡이지 않게 한다. */
   const invalidate = async () => {
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ['dogs'] }),
+      qc.invalidateQueries({ queryKey: ['dogs'], refetchType: 'all' }),
       qc.invalidateQueries({ queryKey: ['dog'] }),
-      qc.invalidateQueries({ queryKey: ['folders'] }),
+      qc.invalidateQueries({ queryKey: ['folders'], refetchType: 'all' }),
       qc.invalidateQueries({ queryKey: ['contacts'] }),
       qc.invalidateQueries({ queryKey: ['inactive-dogs'] }),
     ]);
