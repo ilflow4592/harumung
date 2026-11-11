@@ -16,6 +16,10 @@
 | `guide_comic_started` | 안내 맨 위 8컷 만화의 2컷이 60% 이상 보이는 상태로 400ms 머묾 (1컷은 자동 노출이라 제외) | |
 | `guide_comic_viewed` | 8컷 통과 | `seconds`(2컷→8컷), `panels_seen`(0~8), `skimmed`(4초 미만이면 true) |
 | `guide_comic_abandoned` | 시작했지만 8컷 전에 안내를 떠남 (라우트 이동 시. 탭 종료는 누락 가능) | `max_panel`, `seconds` |
+| `guide_video_played` | 안내 맨 위 1분 사용법 영상 재생 시작 (방문당 1회) | |
+| `guide_video_progress` | 영상 25·50·75% 도달, 각 1회 | `percent` |
+| `guide_video_completed` | 영상을 끝까지 재생 | `seconds` |
+| `guide_video_abandoned` | 재생했지만 끝내지 않고 안내를 떠남 (라우트 이동 시) | `percent`, `seconds` |
 | `search_used` | 검색창 첫 글자 입력 | `screen` |
 | `date_changed` | 날짜 이동 | `screen`, `offset_days` |
 | `absent_toggled` | 안 온 아이 펼침/접기 | `show` |

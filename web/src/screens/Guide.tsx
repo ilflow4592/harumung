@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { TopBar } from '../components/ui';
@@ -26,6 +26,7 @@ const COMIC_ALT = [
 const COMIC_H = [508, 517, 492, 499, 499, 507, 494, 502];
 
 const TOC = [
+  ['video', '▶ 1분 사용법 영상'],
   ['start', '1. 처음 열었을 때'],
   ['dogs', '2. 강아지 등록 및 관리'],
   ['attendance', '3. 아침 등원 체크'],
@@ -36,6 +37,50 @@ const TOC = [
   ['faq', '8. 자주 묻는 질문'],
   ['feedback', '9. 피드백 보내기'],
 ] as const;
+
+/**
+ * 1분 사용법 영상. 탭해야 받기 시작(preload none).
+ * - guide_video_played: 재생 시작 (방문당 1회)
+ * - guide_video_progress: 25·50·75% 도달 각 1회
+ * - guide_video_completed: 끝까지 재생
+ * - guide_video_abandoned: 재생했지만 끝내지 않고 안내를 떠남 (percent, seconds)
+ */
+function GuideVideo() {
+  const sent = useRef<Set<number>>(new Set());
+  const played = useRef(false);
+  const done = useRef(false);
+  const last = useRef({ percent: 0, seconds: 0 });
+  const base = import.meta.env.BASE_URL;
+  const onTime = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (!v.duration) return;
+    const pct = (v.currentTime / v.duration) * 100;
+    last.current = { percent: Math.round(pct), seconds: Math.round(v.currentTime) };
+    for (const mark of [25, 50, 75]) if (pct >= mark && !sent.current.has(mark)) { sent.current.add(mark); track('guide_video_progress', { percent: mark }); }
+  };
+  useEffect(() => () => {
+    if (played.current && !done.current) track('guide_video_abandoned', last.current);
+  }, []);
+  return (
+    <section id="video" className="guide__video" aria-label="1분 사용법 영상">
+      <h3>▶ 1분 사용법 영상</h3>
+      <p>등록부터 보내기까지 한 번에 보여드립니다. 탭하면 재생됩니다.</p>
+      <video
+        controls
+        playsInline
+        preload="none"
+        poster={`${base}guide/howto-poster.jpg`}
+        width={720}
+        height={1560}
+        onPlay={() => { if (!played.current) { played.current = true; track('guide_video_played'); } }}
+        onTimeUpdate={onTime}
+        onEnded={() => { if (!done.current) { done.current = true; track('guide_video_completed', { seconds: last.current.seconds }); } }}
+      >
+        <source src={`${base}guide/howto.mp4`} type="video/mp4" />
+      </video>
+    </section>
+  );
+}
 
 /** 컷을 "봤다"고 치는 기준: 60% 이상 보이는 상태로 400ms 연속, 이미지 로드 완료, 탭이 보이는 상태. */
 const COMIC_RATIO = 0.6;
@@ -101,6 +146,8 @@ export function GuideScreen() {
         <p><b>하루멍은 강아지별 사진 촬영부터 보호자 전달까지, 애견유치원의 일상적인 사진 관리를 간편하게 도와주는 서비스입니다.</b></p>
         <p>촬영 전에 강아지를 선택하면 사진이 해당 강아지의 폴더에 자동으로 저장됩니다. 촬영한 사진은 필요한 항목만 정리한 뒤 카카오톡으로 보호자에게 전달할 수 있습니다.</p>
         <p>하루멍에 저장되는 사진과 영상은 외부 서버에 업로드되지 않으며, 사용 중인 기기에만 보관됩니다.</p>
+
+        <GuideVideo />
 
         <section className="guide__comic" aria-label="8컷으로 보는 하루멍">
           <h3>🐾 8컷으로 보는 하루멍</h3>
